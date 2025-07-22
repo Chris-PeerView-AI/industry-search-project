@@ -1,0 +1,8 @@
+streamlit
+python-dotenv
+openai
+requests
+googlemaps
+supabase-py
+beautifulsoup4
+tqdm
