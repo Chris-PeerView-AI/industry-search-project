@@ -3,6 +3,6 @@ python-dotenv
 openai
 requests
 googlemaps
-supabase-py
+supabase
 beautifulsoup4
 tqdm
