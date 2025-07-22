@@ -29,7 +29,7 @@ if st.session_state.step == 0:
     if project_config:
         st.session_state.project_config = project_config
         st.session_state.step = 1
-        st.experimental_rerun()
+        st.rerun()
 
 # Step 2: Google API + LLM tiering
 elif st.session_state.step == 1:
@@ -37,7 +37,7 @@ elif st.session_state.step == 1:
     finished = search_and_expand(st.session_state.project_config)
     if finished:
         st.session_state.step = 2
-        st.experimental_rerun()
+        st.rerun()
 
 # Step 3: Review results
 elif st.session_state.step == 2:
