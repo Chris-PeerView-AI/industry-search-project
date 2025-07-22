@@ -21,29 +21,18 @@ MODEL_NAME = os.getenv("LLM_MODEL", "llama3")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def normalize(text: str) -> str:
-    text = text.lower().strip()
-    text = re.sub(r"[^a-z0-9 ]", "", text)
-    text = re.sub(r"s$", "", text)  # crude singularization
-    synonyms = {
-        "burger joint": "burger",
-        "icecream": "ice cream",
-    }
-    return synonyms.get(text, text)
-
 def build_prompt(industry: str, business: Dict[str, Any], scraped: Dict[str, Any]) -> str:
     return f"""
 You are an expert business analyst. Return ONLY valid JSON in your reply.
 
-Respond in the following JSON format:
+Your job is to classify how well this business matches the user's request: '{industry}'
+
+Output format:
 {{
+  "tier": 1,  # 1 = strong match, 2 = partial match, 3 = unrelated
   "category": "string",
-  "is_chain": true,
-  "key_attributes": ["string", "string"],
   "summary": "short 1-2 sentence summary"
 }}
-
-User Request: {industry}
 
 Business Name: {business.get("name", "")}
 Page Title: {scraped.get("page_title", "")}
@@ -87,21 +76,11 @@ def google_places_search(query: str, location: str, radius: int) -> list:
     r = requests.get(url, params=params)
     return r.json().get("results", [])
 
-def determine_tier(user_industry: str, llm_category: str) -> int:
-    if normalize(llm_category) == normalize(user_industry):
-        return 1
-    elif normalize(user_industry) in normalize(llm_category):
-        return 2
-    else:
-        return 3
-
 def insert_result(project_id: str, result: Dict[str, Any]):
     try:
         supabase.table("search_results").insert(result).execute()
     except Exception as e:
         st.error(f"Error saving result: {e}")
-
-# Entry point for Streamlit
 
 def search_and_expand(project: Dict[str, Any]) -> bool:
     st.write("Starting Google search and categorization...")
@@ -138,10 +117,13 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
 
             try:
                 parsed = json.loads(raw_response)
-            except json.JSONDecodeError:
-                parsed = {"category": "Unknown", "summary": raw_response}
-
-            tier = determine_tier(query, parsed.get("category", ""))
+                tier = int(parsed.get("tier", 3))
+                category = parsed.get("category", "")
+                summary = parsed.get("summary", raw_response)
+            except Exception:
+                tier = 3
+                category = "Unknown"
+                summary = raw_response
 
             result = {
                 "id": str(uuid4()),
@@ -154,7 +136,7 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
                 "place_id": place_id,
                 "website": website,
                 "tier": tier,
-                "tier_reason": parsed.get("summary", ""),
+                "tier_reason": summary,
                 "manual_override": False,
             }
             insert_result(project["id"], result)
