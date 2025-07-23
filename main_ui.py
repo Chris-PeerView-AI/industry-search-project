@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from modules.project_config import get_or_create_project
 from modules.google_search import search_and_expand
 from modules.review_results import review_and_edit
+from modules.map_view_review import map_review
+
 
 # Load environment variables
 load_dotenv()
@@ -41,5 +43,16 @@ elif st.session_state.step == 1:
 
 # Step 3: Review results
 elif st.session_state.step == 2:
-    st.header("3. Review & Edit Results")
-    review_and_edit(st.session_state.project_config)
+    st.header("3. Review Results")
+
+    view = st.radio(
+        "Choose View:",
+        ["Map View", "Manual Review"],
+        horizontal=True
+    )
+
+    if view == "Map View":
+        map_review(st.session_state.project_config)
+    else:
+        review_and_edit(st.session_state.project_config)
+
