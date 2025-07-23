@@ -38,3 +38,18 @@ def get_or_create_project(default_name, default_industry, default_location, defa
             supabase.table("search_projects").insert(data).execute()
             return data
     return None
+
+
+def select_existing_project():
+    response = supabase.table("search_projects").select("*").order("created_at", desc=True).execute()
+    projects = [p for p in response.data if "test" not in p["name"].lower()]
+
+    if not projects:
+        st.warning("No valid projects found.")
+        return None
+
+    selected = st.selectbox("📂 Load Existing Project", options=projects,
+                            format_func=lambda p: f"{p['name']} ({p['location']})")
+    if st.button("Load Project"):
+        return selected
+    return None

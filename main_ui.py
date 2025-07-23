@@ -2,11 +2,10 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
-from modules.project_config import get_or_create_project
+from modules.project_config import get_or_create_project, select_existing_project
 from modules.google_search import search_and_expand
 from modules.review_results import review_and_edit
 from modules.map_view_review import map_review
-
 
 # Load environment variables
 load_dotenv()
@@ -20,18 +19,29 @@ if "step" not in st.session_state:
 
 # Step 1: Project setup
 if st.session_state.step == 0:
-    st.header("1. Define Project")
-    project_config = get_or_create_project(
-        default_name="Test: Golf Simulators in Northvale",
-        default_industry="Golf Simulators",
-        default_location="Northvale, New Jersey",
-        default_target_count=20,
-        default_max_radius_km=25
-    )
-    if project_config:
-        st.session_state.project_config = project_config
-        st.session_state.step = 1
-        st.rerun()
+    st.header("1. Define or Load Project")
+
+    tab1, tab2 = st.tabs(["➕ New Project", "📂 Existing Project"])
+
+    with tab1:
+        project_config = get_or_create_project(
+            default_name="Test: Golf Simulators in Northvale",
+            default_industry="Golf Simulators",
+            default_location="Northvale, New Jersey",
+            default_target_count=20,
+            default_max_radius_km=25
+        )
+        if project_config:
+            st.session_state.project_config = project_config
+            st.session_state.step = 1
+            st.rerun()
+
+    with tab2:
+        selected = select_existing_project()
+        if selected:
+            st.session_state.project_config = selected
+            st.session_state.step = 2  # skip search since it's already run
+            st.rerun()
 
 # Step 2: Google API + LLM tiering
 elif st.session_state.step == 1:
@@ -55,4 +65,3 @@ elif st.session_state.step == 2:
         map_review(st.session_state.project_config)
     else:
         review_and_edit(st.session_state.project_config)
-
