@@ -4,6 +4,8 @@ from streamlit_folium import st_folium
 from supabase import create_client
 import os
 from dotenv import load_dotenv
+from modules.google_search import geocode_location, generate_grid
+from math import cos, radians
 
 # Load environment
 load_dotenv()
@@ -23,6 +25,16 @@ def map_review(project_config):
     max_radius_km = project_config["max_radius_km"]
     location = project_config["location"]
 
+    # Geocode original search location to use as true center
+    try:
+        center_lat, center_lng = geocode_location(location)
+    except Exception:
+        st.error("Failed to geocode project location.")
+        return
+
+    # Generate search grid and draw circles for each point
+    search_points = generate_grid(center_lat, center_lng, max_radius_km)
+
     # Fetch businesses
     response = supabase.table("search_results").select("*").eq("project_id", project_id).execute()
     businesses = response.data
@@ -31,25 +43,17 @@ def map_review(project_config):
         st.warning("No businesses found for this project.")
         return
 
-    # Determine map center
-    center_lat = None
-    center_lng = None
-    valid_coords = [
-        (b["latitude"], b["longitude"]) for b in businesses if b.get("latitude") and b.get("longitude")
-    ]
-    if valid_coords:
-        center_lat, center_lng = valid_coords[0]
+    m = folium.Map(location=[center_lat, center_lng], zoom_start=12)
 
-    m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
-
-    # Add search radius circle
-    if center_lat and center_lng:
+    # Add a light blue circle for each search point (5km radius)
+    for lat, lng in search_points:
         folium.Circle(
-            location=[center_lat, center_lng],
-            radius=max_radius_km * 1000,
+            location=[lat, lng],
+            radius=5000,  # 5km radius
             color="blue",
             fill=True,
-            fill_opacity=0.05
+            fill_opacity=0.03,
+            weight=0.5
         ).add_to(m)
 
     # Add pins
