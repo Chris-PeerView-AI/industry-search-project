@@ -10,7 +10,6 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
 def review_and_edit(project_config):
     project_id = project_config["id"]
 
@@ -45,11 +44,11 @@ def review_and_edit(project_config):
     for row in rows:
         col1, col2 = st.columns([2, 1])
         with col1:
-            st.markdown(f"**{row['name']}**")
-            st.markdown(row.get("address", ""))
-            st.markdown(f"_Reason:_ {row.get('tier_reason', '')}")
+            with st.expander(f"▶ **{row['name']}**", expanded=False):
+                st.markdown(f"Tier {row.get('tier', 3)}: {row.get('tier_reason', '')}")
+                note = st.text_area(f"Notes for {row['id'][:8]}", value=row.get("notes", ""))
+                flagged = st.checkbox("🚩 Flag for follow-up", value=row.get("flagged", False), key=f"flag-{row['id']}")
 
-            with st.expander("More Info"):
                 if row.get("page_title"):
                     st.markdown(f"**Page Title**: {row['page_title']}")
                 if row.get("website"):
@@ -58,12 +57,6 @@ def review_and_edit(project_config):
                     st.markdown(f"[View on Google Maps]({row['google_maps_url']})", unsafe_allow_html=True)
                 if row.get("category"):
                     st.markdown(f"_LLM Category_: `{row['category']}`")
-                if row.get("notes"):
-                    st.markdown(f"📝 _Notes_: {row['notes']}")
-
-            # Notes
-            note = st.text_area(f"Notes for {row['id'][:8]}", value=row.get("notes", ""))
-            flagged = st.checkbox("🚩 Flag for follow-up", value=row.get("flagged", False), key=f"flag-{row['id']}")
 
         with col2:
             current_tier = row.get("tier", 3)
@@ -75,9 +68,9 @@ def review_and_edit(project_config):
             )
 
             if (
-                    new_tier != current_tier
-                    or note != row.get("notes")
-                    or flagged != row.get("flagged")
+                new_tier != current_tier
+                or note != row.get("notes")
+                or flagged != row.get("flagged")
             ):
                 updated.append({
                     "id": row["id"],
