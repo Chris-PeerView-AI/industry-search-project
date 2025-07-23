@@ -21,6 +21,7 @@ def get_or_create_project(default_name, default_industry, default_location, defa
         location = st.text_input("Location", default_location)
         target_count = st.number_input("Target Number of Businesses", value=default_target_count, min_value=1)
         max_radius = st.number_input("Max Search Radius (km)", value=default_max_radius_km, min_value=1)
+        use_gpt_audit = st.checkbox("Enable GPT-4 Tier 1 Audit After Classification", value=False)
         submitted = st.form_submit_button("Start Project")
 
         if submitted:
@@ -32,6 +33,7 @@ def get_or_create_project(default_name, default_industry, default_location, defa
                 "location": location,
                 "target_count": target_count,
                 "max_radius_km": max_radius,
+                "use_gpt_audit": use_gpt_audit,
             }
             supabase.table("search_projects").insert(data).execute()
             return data

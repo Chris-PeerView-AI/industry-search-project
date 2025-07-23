@@ -142,6 +142,8 @@ def insert_result(project_id: str, result: Dict[str, Any]):
         st.error(f"Error saving result: {e}")
 
 def search_and_expand(project: Dict[str, Any]) -> bool:
+    audit_toggle = project.get("use_gpt_audit", False)
+    st.caption("🔒 GPT-4 audit is {} for this project.".format("enabled" if audit_toggle else "disabled"))
     st.write("Spiral search and categorization starting...")
 
     query = project["industry"]
@@ -213,7 +215,7 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
         classify_progress.empty()
 
     asyncio.run(process())
-
+    st.caption("🔒 GPT-4 audit is disabled by default. Enable only for final checks.")
     audit_toggle = st.checkbox("Use GPT-4 to recheck Tier 1 results", value=False)
 
     if audit_toggle and OPENAI_API_KEY:
