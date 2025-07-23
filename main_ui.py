@@ -55,6 +55,19 @@ elif st.session_state.step == 1:
 elif st.session_state.step == 2:
     st.header("3. Review Results")
 
+    st.subheader("📋 Project Configuration")
+
+    project = st.session_state.project_config
+
+    st.markdown(f"""
+    - **Name**: {project.get('name')}
+    - **Industry**: {project.get('industry')}
+    - **Location**: {project.get('location')}
+    - **Target Count**: {project.get('target_count')}
+    - **Max Radius**: {project.get('max_radius_km')} km
+    - **GPT-4 Audit Enabled**: {"Yes" if project.get('use_gpt_audit') else "No"}
+    """)
+
     view = st.radio(
         "Choose View:",
         ["Map View", "Manual Review"],
@@ -62,6 +75,7 @@ elif st.session_state.step == 2:
     )
 
     if view == "Map View":
-        map_review(st.session_state.project_config)
+        map_review(project)
     else:
-        review_and_edit(st.session_state.project_config)
+        review_and_edit(project)
+
