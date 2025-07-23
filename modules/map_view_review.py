@@ -63,10 +63,19 @@ def map_review(project_config):
         if lat and lng:
             tier = b.get("tier", 3)
             color = tier_color(tier)
-            popup = f"{b['name']}<br>Tier {tier}<br>{b.get('address', '')}"
+
+            popup = f"""
+            <b>{b['name']}</b><br>
+            Tier {tier}<br>
+            {b.get('address', '')}<br>
+            <i>Category:</i> {b.get('category', '')}<br>
+            <i>Types:</i> {', '.join(b.get('types', []))}<br>
+            <i>Headers:</i> {b.get('headers', '')[:150]}
+            """
+
             folium.Marker(
                 location=[lat, lng],
-                popup=popup,
+                popup=folium.Popup(popup, max_width=300),
                 icon=folium.Icon(color=color)
             ).add_to(m)
 
