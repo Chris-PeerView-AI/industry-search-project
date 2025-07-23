@@ -27,25 +27,20 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 GRID_STEP_KM = 5
 SEARCH_RADIUS_KM = 5
 
-
 def geocode_location(location: str) -> Tuple[float, float]:
     url = "https://maps.googleapis.com/maps/api/geocode/json"
     params = {"address": location, "key": GOOGLE_API_KEY}
     r = requests.get(url, params=params)
-    data = r.json()
-    results = data.get("results", [])
+    results = r.json().get("results", [])
     if not results:
-        st.error(f"Geocoding failed for '{location}'. Full response: {json.dumps(data, indent=2)}")
         raise ValueError("Unable to geocode location.")
     loc = results[0]["geometry"]["location"]
     return loc["lat"], loc["lng"]
 
-
-
 def generate_grid(center_lat: float, center_lng: float, max_radius_km: int) -> List[Tuple[float, float]]:
     points = []
     steps = int(max_radius_km / GRID_STEP_KM)
-    deg_step_lat = GRID_STEP_KM / 110.574  # km per degree latitude
+    deg_step_lat = GRID_STEP_KM / 110.574
     deg_step_lng = GRID_STEP_KM / (111.320 * cos(radians(center_lat)))
 
     for dx in range(-steps, steps + 1):
@@ -56,7 +51,6 @@ def generate_grid(center_lat: float, center_lng: float, max_radius_km: int) -> L
                 lng = center_lng + dy * deg_step_lng
                 points.append((lat, lng))
     return points
-
 
 def google_nearby_search(query: str, lat: float, lng: float, radius_km: int) -> List[Dict[str, Any]]:
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
@@ -80,7 +74,6 @@ def google_nearby_search(query: str, lat: float, lng: float, radius_km: int) -> 
             break
     return all_results
 
-
 def build_prompt(industry: str, business: Dict[str, Any], scraped: Dict[str, Any]) -> str:
     return f"""
 You are an expert business analyst. Return ONLY valid JSON in your reply.
@@ -101,7 +94,6 @@ Headers: {scraped.get("headers", "")}
 Visible Text Blocks: {scraped.get("visible_text_blocks", "")}
 """.strip()
 
-
 async def call_llm(prompt: str) -> str:
     proc = await asyncio.create_subprocess_exec(
         "ollama", "run", MODEL_NAME,
@@ -117,7 +109,6 @@ async def call_llm(prompt: str) -> str:
     brace_match = re.search(r"\{.*\}", raw_output, re.DOTALL)
     return brace_match.group(0).strip() if brace_match else raw_output
 
-
 def scrape_site(url: str) -> Dict[str, str]:
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -132,13 +123,11 @@ def scrape_site(url: str) -> Dict[str, str]:
     except Exception:
         return {}
 
-
 def insert_result(project_id: str, result: Dict[str, Any]):
     try:
         supabase.table("search_results").insert(result).execute()
     except Exception as e:
         st.error(f"Error saving result: {e}")
-
 
 def search_and_expand(project: Dict[str, Any]) -> bool:
     st.write("Spiral search and categorization starting...")
@@ -151,8 +140,10 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
     points = generate_grid(center_lat, center_lng, max_radius_km)
 
     found = {}
-    for lat, lng in points:
-        st.write(f"Searching at ({lat:.4f}, {lng:.4f})")
+    progress = st.progress(0, text="Collecting businesses from Google...")
+
+    for i, (lat, lng) in enumerate(points):
+        progress.progress(i / len(points), text=f"Searching at ({lat:.4f}, {lng:.4f})")
         results = google_nearby_search(query, lat, lng, SEARCH_RADIUS_KM)
         for r in results:
             pid = r.get("place_id")
@@ -161,10 +152,13 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
         if len(found) >= target:
             break
 
+    progress.empty()
     st.write(f"Classifying {len(found)} unique businesses...")
 
     async def process():
-        for place in found.values():
+        classify_progress = st.progress(0, text="Classifying with LLM...")
+        total = len(found)
+        for i, place in enumerate(found.values()):
             name = place.get("name")
             place_id = place.get("place_id")
             website = place.get("website") or ""
@@ -200,6 +194,8 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
                 "manual_override": False,
             }
             insert_result(project["id"], result)
+            classify_progress.progress((i + 1) / total, text=f"Processed {i + 1} of {total}")
+        classify_progress.empty()
 
     asyncio.run(process())
     st.success("All results classified and saved.")
