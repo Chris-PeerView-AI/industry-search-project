@@ -106,8 +106,8 @@ Output format:
 {{
   "tier": 1,
   "category": "string",
-  "summary": "short 1-2 sentence summary"
-}}
+  "summary": "short 1-2 sentence summary",
+        }}
 
 Business Name: {business.get("name", "")}
 Page Title: {scraped.get("page_title", "")}
@@ -183,6 +183,9 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
             prompt = build_prompt(query, place, scraped, place_details)
             raw_response = await call_llm(prompt)
 
+            lat = place.get("geometry", {}).get("location", {}).get("lat", None)
+            lng = place.get("geometry", {}).get("location", {}).get("lng", None)
+
             try:
                 parsed = json.loads(raw_response)
                 tier = int(parsed.get("tier", 3))
@@ -192,6 +195,7 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
                 tier = 3
                 category = "Unknown"
                 summary = raw_response
+
 
             result = {
                 "category": category,
@@ -209,6 +213,8 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
                 "tier": tier,
                 "tier_reason": summary,
                 "manual_override": False,
+                "latitude": lat,
+                "longitude": lng,
             }
             insert_result(project["id"], result)
             classify_progress.progress((i + 1) / total, text=f"Processed {i + 1} of {total}")
