@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client
 import os
 from dotenv import load_dotenv
+from collections import Counter
 
 # Load environment
 load_dotenv()
@@ -9,17 +10,35 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 def review_and_edit(project_config):
     project_id = project_config["id"]
 
+    st.subheader("📊 Project Summary")
+
+    # Tier filter UI
+    tiers = st.multiselect("Filter by Tier", [1, 2, 3], default=[1, 2, 3])
+
+    # Query with tier filter
     response = supabase.table("search_results").select("*").eq("project_id", project_id).execute()
-    rows = response.data
+    rows = [r for r in response.data if r.get("tier") in tiers]
 
     if not rows:
         st.warning("No results found for this project.")
         return
 
-    st.caption(f"Reviewing {len(rows)} businesses for: {project_config['name']}")
+    # Audit Summary
+    tier_counts = Counter([r.get("tier", 3) for r in response.data])
+    overrides = sum(1 for r in response.data if r.get("manual_override"))
+    flagged = sum(1 for r in response.data if r.get("flagged"))
+
+    st.markdown(f"""
+    - **Tier Counts**: {dict(tier_counts)}
+    - **Manual Overrides**: {overrides}
+    - **Flagged for Follow-Up**: {flagged}
+    """)
+
+    st.caption(f"Reviewing {len(rows)} filtered businesses")
 
     updated = []
 
@@ -39,6 +58,12 @@ def review_and_edit(project_config):
                     st.markdown(f"[View on Google Maps]({row['google_maps_url']})", unsafe_allow_html=True)
                 if row.get("category"):
                     st.markdown(f"_LLM Category_: `{row['category']}`")
+                if row.get("notes"):
+                    st.markdown(f"📝 _Notes_: {row['notes']}")
+
+            # Notes
+            note = st.text_area(f"Notes for {row['id'][:8]}", value=row.get("notes", ""))
+            flagged = st.checkbox("🚩 Flag for follow-up", value=row.get("flagged", False), key=f"flag-{row['id']}")
 
         with col2:
             current_tier = row.get("tier", 3)
@@ -48,14 +73,28 @@ def review_and_edit(project_config):
                 index=current_tier - 1 if current_tier in [1, 2, 3] else 2,
                 key=row["id"]
             )
-            if new_tier != current_tier:
-                updated.append({"id": row["id"], "tier": new_tier, "manual_override": True})
+
+            if (
+                    new_tier != current_tier
+                    or note != row.get("notes")
+                    or flagged != row.get("flagged")
+            ):
+                updated.append({
+                    "id": row["id"],
+                    "tier": new_tier,
+                    "notes": note,
+                    "flagged": flagged,
+                    "manual_override": True
+                })
 
     if updated:
         if st.button("Save Changes"):
             for u in updated:
                 supabase.table("search_results").update({
-                    "tier": u["tier"], "manual_override": True
+                    "tier": u["tier"],
+                    "manual_override": True,
+                    "notes": u["notes"],
+                    "flagged": u["flagged"]
                 }).eq("id", u["id"]).execute()
             st.success("Changes saved.")
             st.rerun()
