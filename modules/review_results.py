@@ -1,5 +1,3 @@
-# modules/review_results.py
-
 import streamlit as st
 from supabase import create_client
 import os
@@ -31,8 +29,16 @@ def review_and_edit(project_config):
             st.markdown(f"**{row['name']}**")
             st.markdown(row.get("address", ""))
             st.markdown(f"_Reason:_ {row.get('tier_reason', '')}")
-            if row.get("website"):
-                st.markdown(f"[Website]({row['website']})")
+
+            with st.expander("More Info"):
+                if row.get("page_title"):
+                    st.markdown(f"**Page Title**: {row['page_title']}")
+                if row.get("website"):
+                    st.markdown(f"[Visit Website]({row['website']})", unsafe_allow_html=True)
+                if row.get("google_maps_url"):
+                    st.markdown(f"[View on Google Maps]({row['google_maps_url']})", unsafe_allow_html=True)
+                if row.get("category"):
+                    st.markdown(f"_LLM Category_: `{row['category']}`")
 
         with col2:
             current_tier = row.get("tier", 3)
