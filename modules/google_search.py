@@ -5,12 +5,14 @@ import requests
 import json
 import asyncio
 from uuid import uuid4
-from typing import Dict, Any
+from typing import Dict, Any, List, Tuple
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from supabase import create_client
 import streamlit as st
 import re
+import time
+from math import cos, radians
 
 # Load environment
 load_dotenv()
@@ -20,6 +22,64 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
 MODEL_NAME = os.getenv("LLM_MODEL", "llama3")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Constants for search density
+GRID_STEP_KM = 5
+SEARCH_RADIUS_KM = 5
+
+
+def geocode_location(location: str) -> Tuple[float, float]:
+    url = "https://maps.googleapis.com/maps/api/geocode/json"
+    params = {"address": location, "key": GOOGLE_API_KEY}
+    r = requests.get(url, params=params)
+    data = r.json()
+    results = data.get("results", [])
+    if not results:
+        st.error(f"Geocoding failed for '{location}'. Full response: {json.dumps(data, indent=2)}")
+        raise ValueError("Unable to geocode location.")
+    loc = results[0]["geometry"]["location"]
+    return loc["lat"], loc["lng"]
+
+
+
+def generate_grid(center_lat: float, center_lng: float, max_radius_km: int) -> List[Tuple[float, float]]:
+    points = []
+    steps = int(max_radius_km / GRID_STEP_KM)
+    deg_step_lat = GRID_STEP_KM / 110.574  # km per degree latitude
+    deg_step_lng = GRID_STEP_KM / (111.320 * cos(radians(center_lat)))
+
+    for dx in range(-steps, steps + 1):
+        for dy in range(-steps, steps + 1):
+            dist = (dx**2 + dy**2)**0.5 * GRID_STEP_KM
+            if dist <= max_radius_km:
+                lat = center_lat + dx * deg_step_lat
+                lng = center_lng + dy * deg_step_lng
+                points.append((lat, lng))
+    return points
+
+
+def google_nearby_search(query: str, lat: float, lng: float, radius_km: int) -> List[Dict[str, Any]]:
+    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+    params = {
+        "location": f"{lat},{lng}",
+        "radius": radius_km * 1000,
+        "keyword": query,
+        "key": GOOGLE_API_KEY,
+    }
+    all_results = []
+    while True:
+        r = requests.get(url, params=params)
+        data = r.json()
+        results = data.get("results", [])
+        all_results.extend(results)
+        token = data.get("next_page_token")
+        if token:
+            time.sleep(2)
+            params["pagetoken"] = token
+        else:
+            break
+    return all_results
+
 
 def build_prompt(industry: str, business: Dict[str, Any], scraped: Dict[str, Any]) -> str:
     return f"""
@@ -41,6 +101,7 @@ Headers: {scraped.get("headers", "")}
 Visible Text Blocks: {scraped.get("visible_text_blocks", "")}
 """.strip()
 
+
 async def call_llm(prompt: str) -> str:
     proc = await asyncio.create_subprocess_exec(
         "ollama", "run", MODEL_NAME,
@@ -56,6 +117,7 @@ async def call_llm(prompt: str) -> str:
     brace_match = re.search(r"\{.*\}", raw_output, re.DOTALL)
     return brace_match.group(0).strip() if brace_match else raw_output
 
+
 def scrape_site(url: str) -> Dict[str, str]:
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
@@ -70,11 +132,6 @@ def scrape_site(url: str) -> Dict[str, str]:
     except Exception:
         return {}
 
-def google_places_search(query: str, location: str, radius: int) -> list:
-    url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    params = {"query": query + " in " + location, "radius": radius * 1000, "key": GOOGLE_API_KEY}
-    r = requests.get(url, params=params)
-    return r.json().get("results", [])
 
 def insert_result(project_id: str, result: Dict[str, Any]):
     try:
@@ -82,33 +139,36 @@ def insert_result(project_id: str, result: Dict[str, Any]):
     except Exception as e:
         st.error(f"Error saving result: {e}")
 
+
 def search_and_expand(project: Dict[str, Any]) -> bool:
-    st.write("Starting Google search and categorization...")
+    st.write("Spiral search and categorization starting...")
 
     query = project["industry"]
     location = project["location"]
-    radius = 5
-    max_radius = int(project["max_radius_km"])
+    max_radius_km = int(project["max_radius_km"])
     target = int(project["target_count"])
-    found = []
+    center_lat, center_lng = geocode_location(location)
+    points = generate_grid(center_lat, center_lng, max_radius_km)
 
-    while len(found) < target and radius <= max_radius:
-        st.write(f"Searching {query} in {location} with radius {radius}km")
-        results = google_places_search(query, location, radius)
+    found = {}
+    for lat, lng in points:
+        st.write(f"Searching at ({lat:.4f}, {lng:.4f})")
+        results = google_nearby_search(query, lat, lng, SEARCH_RADIUS_KM)
         for r in results:
-            if r.get("place_id") in [f.get("place_id") for f in found]:
-                continue
-            found.append(r)
-        radius *= 2
+            pid = r.get("place_id")
+            if pid and pid not in found:
+                found[pid] = r
+        if len(found) >= target:
+            break
 
-    st.write(f"Classifying {len(found)} businesses...")
+    st.write(f"Classifying {len(found)} unique businesses...")
 
     async def process():
-        for place in found:
+        for place in found.values():
             name = place.get("name")
             place_id = place.get("place_id")
             website = place.get("website") or ""
-            address = place.get("formatted_address", "")
+            address = place.get("vicinity", "")
             city = state = zip = ""
 
             scraped = scrape_site(website) if website else {}
