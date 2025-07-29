@@ -31,17 +31,19 @@ def geocode_location(location: str) -> Tuple[float, float]:
     return loc["lat"], loc["lng"]
 
 def generate_grid(center_lat: float, center_lng: float, max_radius_km: int) -> List[Tuple[float, float]]:
-    points = []
-    steps = int(max_radius_km / 5)
-    deg_step_lat = 5 / 110.574
-    deg_step_lng = 5 / (111.320 * cos(radians(center_lat)))
+    points = [(center_lat, center_lng)]  # always include center point
+    step_km = 2.5
+    steps = int(max_radius_km / step_km)
+    deg_step_lat = step_km / 110.574
+    deg_step_lng = step_km / (111.320 * cos(radians(center_lat)))
 
-    for dx in range(-steps, steps + 1):
-        for dy in range(-steps, steps + 1):
-            dist = (dx**2 + dy**2)**0.5 * 5
-            if dist <= max_radius_km:
-                lat = center_lat + dx * deg_step_lat
-                lng = center_lng + dy * deg_step_lng
+    for ring in range(1, steps + 1):
+        for dx in range(-ring, ring + 1):
+            for dy in range(-ring, ring + 1):
+                if abs(dx) != ring and abs(dy) != ring:
+                    continue  # only edge of the ring
+                lat = center_lat + dy * deg_step_lat
+                lng = center_lng + dx * deg_step_lng
                 points.append((lat, lng))
     return points
 

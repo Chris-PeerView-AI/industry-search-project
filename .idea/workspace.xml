@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Moved from wrong supabase table projects to search_projects">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/google_search.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/google_search.py" afterDir="false" />
-    </list>
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Extracting address information cleaner" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -346,7 +343,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753818631714</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="Extracting address information cleaner">
+      <option name="closed" value="true" />
+      <created>1753819660378</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1753819660378</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -368,6 +373,7 @@
     <MESSAGE value="Streamlit UI for Enigma Pulls. Still Not complete but Streamlit runs and pulls project details" />
     <MESSAGE value="Fixed lost main_ui.py code" />
     <MESSAGE value="Moved from wrong supabase table projects to search_projects" />
-    <option name="LAST_COMMIT_MESSAGE" value="Moved from wrong supabase table projects to search_projects" />
+    <MESSAGE value="Extracting address information cleaner" />
+    <option name="LAST_COMMIT_MESSAGE" value="Extracting address information cleaner" />
   </component>
 </project>
