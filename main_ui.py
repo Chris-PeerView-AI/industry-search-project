@@ -1,92 +1,81 @@
+# main_ui.py
 import streamlit as st
-import uuid
-from datetime import datetime
-from supabase import create_client, Client
-from pull_enigma_data_for_business import pull_enigma_data_for_business  # This is your actual ingestion logic
 import os
 from dotenv import load_dotenv
+from modules.project_config import get_or_create_project, select_existing_project
+from modules.google_search import search_and_expand
+from modules.review_results import review_and_edit
+from modules.map_view_review import map_review
 
-# --- Load Env ---
+# Load environment variables
 load_dotenv()
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- UI ---
-st.title("📡 Enigma Data Pull Tool")
+st.set_page_config(page_title="Industry Market Search Tool")
+st.title("Industry/Market Google API & Enigma Pull Project")
 
-# Load available projects from Supabase
-def fetch_projects():
-    response = supabase.table("projects").select("project_id, project_name").order("project_name").execute()
-    return response.data
+# Step control for UI
+if "step" not in st.session_state:
+    st.session_state.step = 0
 
-projects = fetch_projects()
-project_options = {p["project_name"] or p["project_id"]: p["project_id"] for p in projects}
+# Step 1: Project setup
+if st.session_state.step == 0:
+    st.header("1. Define or Load Project")
 
-selected_project_name = st.selectbox("Select a Project", list(project_options.keys()))
-project_id = project_options[selected_project_name]
+    tab1, tab2 = st.tabs(["➕ New Project", "📂 Existing Project"])
 
-if project_id:
-    # Step 1: Validate project exists
-    project_check = supabase.table("projects").select("project_id").eq("project_id", project_id).execute()
-    if not project_check.data:
-        st.error("Project not found. Please select a valid project.")
+    with tab1:
+        project_config = get_or_create_project(
+            default_name="Test: Golf Simulators in Northvale",
+            default_industry="Golf Simulators",
+            default_location="Northvale, New Jersey",
+            default_target_count=20,
+            default_max_radius_km=25
+        )
+        if project_config:
+            st.session_state.project_config = project_config
+            st.session_state.step = 1
+            st.rerun()
+
+    with tab2:
+        selected = select_existing_project()
+        if selected:
+            st.session_state.project_config = selected
+            st.session_state.step = 2  # skip search since it's already run
+            st.rerun()
+
+# Step 2: Google API + LLM tiering
+elif st.session_state.step == 1:
+    st.header("2. Run Google Search and Categorize")
+    finished = search_and_expand(st.session_state.project_config)
+    if finished:
+        st.session_state.step = 2
+        st.rerun()
+
+# Step 3: Review results
+elif st.session_state.step == 2:
+    st.header("3. Review Results")
+
+    st.subheader("📋 Project Configuration")
+
+    project = st.session_state.project_config
+
+    st.markdown(f"""
+    - **Name**: {project.get('name')}
+    - **Industry**: {project.get('industry')}
+    - **Location**: {project.get('location')}
+    - **Target Count**: {project.get('target_count')}
+    - **Max Radius**: {project.get('max_radius_km')} km
+    - **GPT-4 Audit Enabled**: {"Yes" if project.get('use_gpt_audit') else "No"}
+    """)
+
+    view = st.radio(
+        "Choose View:",
+        ["Map View", "Manual Review"],
+        horizontal=True
+    )
+
+    if view == "Map View":
+        map_review(project)
     else:
-        # Step 2: Load businesses from search_results
-        with st.spinner("Loading businesses..."):
-            response = supabase.table("search_results").select("*").eq("project_id", project_id).execute()
-            all_businesses = response.data
+        review_and_edit(project)
 
-        # Group by tier and show filter
-        available_tiers = sorted(set([b.get("tier", 3) for b in all_businesses if b.get("tier") in [1, 2, 3]]))
-        selected_tiers = st.multiselect("Select Tiers to Pull From", available_tiers, default=[1])
-        filtered_businesses = [b for b in all_businesses if b.get("tier") in selected_tiers]
-
-        # Step 3: Check Enigma pull status
-        with st.spinner("Checking existing Enigma data..."):
-            existing = supabase.table("enigma_businesses").select("place_id").execute().data
-            existing_place_ids = set(e['place_id'] for e in existing if e.get("place_id"))
-
-        businesses_to_pull = []
-        skipped = []
-        for b in filtered_businesses:
-            pid = b.get("place_id")
-            if not pid:
-                skipped.append(b)
-            elif pid not in existing_place_ids:
-                businesses_to_pull.append(b)
-
-        st.write(f"Total businesses in selected tiers: {len(filtered_businesses)}")
-        st.write(f"Businesses with missing place_id (skipped): {len(skipped)}")
-        st.write(f"Remaining to pull from Enigma: {len(businesses_to_pull)}")
-
-        if businesses_to_pull:
-            st.subheader("📋 Preview Businesses to Pull")
-            st.dataframe([
-                {
-                    "Name": b["name"],
-                    "City": b.get("city"),
-                    "State": b.get("state"),
-                    "Place ID": b.get("place_id"),
-                    "Tier": b.get("tier")
-                } for b in businesses_to_pull
-            ])
-
-            if st.button("Pull Enigma Data Now"):
-                pull_session_id = str(uuid.uuid4())
-                pull_timestamp = datetime.utcnow()
-
-                with st.spinner("Fetching from Enigma and storing in Supabase..."):
-                    for b in businesses_to_pull:
-                        try:
-                            b["project_id"] = project_id
-                            b["pull_session_id"] = pull_session_id
-                            b["pull_timestamp"] = pull_timestamp.isoformat()
-                            pull_enigma_data_for_business(b)
-                        except Exception as e:
-                            st.error(f"❌ Failed to pull data for {b['name']}: {e}")
-                    st.success("✅ Data pull complete.")
-
-        if skipped:
-            with st.expander("⚠️ Skipped Businesses (Missing place_id)"):
-                st.write([b["name"] for b in skipped])
