@@ -84,7 +84,11 @@ def scrape_site(url: str) -> Dict[str, str]:
 
 def get_place_details(place_id: str) -> Dict[str, Any]:
     url = "https://maps.googleapis.com/maps/api/place/details/json"
-    params = {"place_id": place_id, "key": GOOGLE_API_KEY, "fields": "type,formatted_phone_number,opening_hours,editorial_summary"}
+    params = {
+        "place_id": place_id,
+        "key": GOOGLE_API_KEY,
+        "fields": "address_components,type,formatted_phone_number,opening_hours,editorial_summary"
+    }
     try:
         r = requests.get(url, params=params)
         return r.json().get("result", {})
@@ -176,7 +180,16 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
             place_id = place.get("place_id")
             website = place.get("website") or ""
             address = place.get("vicinity", "")
-            city = state = zip = ""
+            place_details = get_place_details(place_id)
+            address_components = place_details.get("address_components", [])
+            for comp in address_components:
+                types = comp.get("types", [])
+                if "locality" in types or "postal_town" in types:
+                    city = comp.get("long_name", "")
+                elif "administrative_area_level_1" in types:
+                    state = comp.get("short_name", "")
+                elif "postal_code" in types:
+                    zip = comp.get("long_name", "")
 
             scraped = scrape_site(website) if website else {}
             place_details = get_place_details(place_id)
