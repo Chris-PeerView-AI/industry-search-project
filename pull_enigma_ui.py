@@ -2,8 +2,13 @@ import streamlit as st
 import uuid
 from datetime import datetime
 from supabase import create_client, Client
-from pull_enigma_data_for_business import pull_enigma_data_for_business  # This is your actual ingestion logic
+
+# Fix path to import from modules directory
+import sys
 import os
+sys.path.append(os.path.join(os.path.dirname(__file__), "modules"))
+
+from modules.pull_enigma_data_for_business import pull_enigma_data_for_business
 from dotenv import load_dotenv
 
 # --- Load Env ---
@@ -39,7 +44,8 @@ if project_id:
 
         # Group by tier and show filter
         available_tiers = sorted(set([b.get("tier", 3) for b in all_businesses if b.get("tier") in [1, 2, 3]]))
-        selected_tiers = st.multiselect("Select Tiers to Pull From", available_tiers, default=[1])
+        default_tiers = [t for t in [1] if t in available_tiers] or available_tiers[:1]
+        selected_tiers = st.multiselect("Select Tiers to Pull From", available_tiers, default=default_tiers)
         filtered_businesses = [b for b in all_businesses if b.get("tier") in selected_tiers]
 
         # Step 3: Check Enigma pull status

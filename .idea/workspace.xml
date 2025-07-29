@@ -4,14 +4,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Adjusted manual review to simplify">
-      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_business_details.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_golfcave_clark_details.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_location_by_address.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_location_by_zip_and_match.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/test_enigma_brand_search.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/test_enigma_search.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Tested Enigma API to pull Golf Cave as an example">
+      <change afterPath="$PROJECT_DIR$/modules/TEST_Engima_Supabase_Ingest.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/pull_enigma_ui.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_ui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pull_enigma_golfcave_clark_details.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/TEST_pull_enigma_golfcave_clark_details.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pull_enigma_location_by_zip_and_match.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/TEST_pull_enigma_location_by_zip_and_match.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -41,27 +41,29 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.pull_enigma_business_details.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_golfcave_clark_details.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_location_by_address.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_location_by_zip_and_match.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_enigma_brand_search.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_enigma_search.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.Engima_Supabase_Ingest.executor": "Run",
+    "Python.pull_enigma_business_details.executor": "Run",
+    "Python.pull_enigma_golfcave_clark_details.executor": "Run",
+    "Python.pull_enigma_location_by_address.executor": "Run",
+    "Python.pull_enigma_location_by_zip_and_match.executor": "Run",
+    "Python.pull_enigma_ui.executor": "Run",
+    "Python.test_enigma_brand_search.executor": "Run",
+    "Python.test_enigma_search.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.pull_enigma_golfcave_clark_details">
-    <configuration name="pull_enigma_business_details" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Python.pull_enigma_ui">
+    <configuration name="OLD_pull_enigma_location_by_address" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -74,7 +76,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_business_details.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/OLD_pull_enigma_location_by_address.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -83,7 +85,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pull_enigma_golfcave_clark_details" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="TEST_Engima_Supabase_Ingest" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -96,7 +98,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_golfcave_clark_details.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_Engima_Supabase_Ingest.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -105,7 +107,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pull_enigma_location_by_address" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="TEST_pull_enigma_golfcave_clark_details" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -118,7 +120,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_location_by_address.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_pull_enigma_golfcave_clark_details.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -127,7 +129,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="pull_enigma_location_by_zip_and_match" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="TEST_pull_enigma_location_by_zip_and_match" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -140,7 +142,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_location_by_zip_and_match.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_pull_enigma_location_by_zip_and_match.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -149,7 +151,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="test_enigma_brand_search" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="pull_enigma_ui" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -162,7 +164,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/test_enigma_brand_search.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/pull_enigma_ui.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -173,11 +175,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.pull_enigma_golfcave_clark_details" />
-        <item itemvalue="Python.pull_enigma_location_by_zip_and_match" />
-        <item itemvalue="Python.pull_enigma_location_by_address" />
-        <item itemvalue="Python.test_enigma_brand_search" />
-        <item itemvalue="Python.pull_enigma_business_details" />
+        <item itemvalue="Python.pull_enigma_ui" />
+        <item itemvalue="Python.TEST_Engima_Supabase_Ingest" />
+        <item itemvalue="Python.TEST_pull_enigma_golfcave_clark_details" />
+        <item itemvalue="Python.TEST_pull_enigma_location_by_zip_and_match" />
+        <item itemvalue="Python.OLD_pull_enigma_location_by_address" />
       </list>
     </recent_temporary>
   </component>
@@ -316,7 +318,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753303771227</updated>
     </task>
-    <option name="localTasksCounter" value="16" />
+    <task id="LOCAL-00016" summary="Tested Enigma API to pull Golf Cave as an example">
+      <option name="closed" value="true" />
+      <created>1753803504295</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1753803504295</updated>
+    </task>
+    <option name="localTasksCounter" value="17" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -334,6 +344,7 @@
     <MESSAGE value="Expanded Review details" />
     <MESSAGE value="Adjusted Map Display details" />
     <MESSAGE value="Adjusted manual review to simplify" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adjusted manual review to simplify" />
+    <MESSAGE value="Tested Enigma API to pull Golf Cave as an example" />
+    <option name="LAST_COMMIT_MESSAGE" value="Tested Enigma API to pull Golf Cave as an example" />
   </component>
 </project>
