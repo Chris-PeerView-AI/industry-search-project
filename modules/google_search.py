@@ -37,6 +37,8 @@ def generate_grid(center_lat: float, center_lng: float, max_radius_km: int) -> L
     deg_step_lat = step_km / 110.574
     deg_step_lng = step_km / (111.320 * cos(radians(center_lat)))
 
+    seen = set()
+
     for ring in range(1, steps + 1):
         for dx in range(-ring, ring + 1):
             for dy in range(-ring, ring + 1):
@@ -44,7 +46,9 @@ def generate_grid(center_lat: float, center_lng: float, max_radius_km: int) -> L
                     continue  # only edge of the ring
                 lat = center_lat + dy * deg_step_lat
                 lng = center_lng + dx * deg_step_lng
-                points.append((lat, lng))
+                if (lat, lng) not in seen:
+                    seen.add((lat, lng))
+                    points.append((lat, lng))
     return points
 
 def google_nearby_search(query: str, lat: float, lng: float, radius_km: int) -> List[Dict[str, Any]]:
