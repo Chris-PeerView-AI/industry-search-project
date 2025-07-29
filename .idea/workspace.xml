@@ -1,12 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/industry_search_project.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Adjusted manual review to simplify">
+      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_business_details.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_golfcave_clark_details.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_location_by_address.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_location_by_zip_and_match.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/test_enigma_brand_search.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/test_enigma_search.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -16,22 +21,166 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectColorInfo"><![CDATA[{
-  "associatedIndex": 8
-}]]></component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;Chris-PeerView-AI&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/Chris-PeerView-AI/industry-search-project.git&quot;,
+    &quot;accountId&quot;: &quot;3f9c444e-74d3-48c1-8e9f-fb9b5c382f9e&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 8
+}</component>
   <component name="ProjectId" id="30FAuVCvFfSmxh5ztwf6FBOyY1k" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.pull_enigma_business_details.executor&quot;: &quot;Run&quot;,
+    &quot;Python.pull_enigma_golfcave_clark_details.executor&quot;: &quot;Run&quot;,
+    &quot;Python.pull_enigma_location_by_address.executor&quot;: &quot;Run&quot;,
+    &quot;Python.pull_enigma_location_by_zip_and_match.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_enigma_brand_search.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test_enigma_search.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;
   }
-}]]></component>
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python.pull_enigma_golfcave_clark_details">
+    <configuration name="pull_enigma_business_details" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_business_details.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pull_enigma_golfcave_clark_details" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_golfcave_clark_details.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pull_enigma_location_by_address" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_location_by_address.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pull_enigma_location_by_zip_and_match" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/pull_enigma_location_by_zip_and_match.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="test_enigma_brand_search" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/test_enigma_brand_search.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.pull_enigma_golfcave_clark_details" />
+        <item itemvalue="Python.pull_enigma_location_by_zip_and_match" />
+        <item itemvalue="Python.pull_enigma_location_by_address" />
+        <item itemvalue="Python.test_enigma_brand_search" />
+        <item itemvalue="Python.pull_enigma_business_details" />
+      </list>
+    </recent_temporary>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -47,6 +196,144 @@
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
     </task>
+    <task id="LOCAL-00001" summary="Placeholder schafolding">
+      <option name="closed" value="true" />
+      <created>1753214265654</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1753214265654</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Google Search MVP set up">
+      <option name="closed" value="true" />
+      <created>1753216584525</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1753216584525</updated>
+    </task>
+    <task id="LOCAL-00003" summary="Updated classification scheme to use LLM">
+      <option name="closed" value="true" />
+      <created>1753218781149</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1753218781149</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Spiral search pattern for google places search">
+      <option name="closed" value="true" />
+      <created>1753289639331</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1753289639331</updated>
+    </task>
+    <task id="LOCAL-00005" summary="Progress Status while running">
+      <option name="closed" value="true" />
+      <created>1753292621514</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1753292621514</updated>
+    </task>
+    <task id="LOCAL-00006" summary="Refining Classification and adding Open AI capabilities">
+      <option name="closed" value="true" />
+      <created>1753296773357</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1753296773357</updated>
+    </task>
+    <task id="LOCAL-00007" summary="Refining Classification and adding Open AI capabilities">
+      <option name="closed" value="true" />
+      <created>1753297549066</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1753297549066</updated>
+    </task>
+    <task id="LOCAL-00008" summary="Added Lat and Long to business records">
+      <option name="closed" value="true" />
+      <created>1753298729430</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1753298729430</updated>
+    </task>
+    <task id="LOCAL-00009" summary="Added a map view">
+      <option name="closed" value="true" />
+      <created>1753299522722</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1753299522722</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Updated map view circle radius">
+      <option name="closed" value="true" />
+      <created>1753300017547</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1753300017547</updated>
+    </task>
+    <task id="LOCAL-00011" summary="Put in ability to load prior projects">
+      <option name="closed" value="true" />
+      <created>1753302856362</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1753302856362</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Kept Project Details in review mode">
+      <option name="closed" value="true" />
+      <created>1753302965223</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1753302965223</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Expanded Review details">
+      <option name="closed" value="true" />
+      <created>1753303338054</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1753303338054</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Adjusted Map Display details">
+      <option name="closed" value="true" />
+      <created>1753303465412</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1753303465412</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Adjusted manual review to simplify">
+      <option name="closed" value="true" />
+      <created>1753303771227</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1753303771227</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Placeholder schafolding" />
+    <MESSAGE value="Google Search MVP set up" />
+    <MESSAGE value="Updated classification scheme to use LLM" />
+    <MESSAGE value="Spiral search pattern for google places search" />
+    <MESSAGE value="Progress Status while running" />
+    <MESSAGE value="Refining Classification and adding Open AI capabilities" />
+    <MESSAGE value="Added Lat and Long to business records" />
+    <MESSAGE value="Added a map view" />
+    <MESSAGE value="Updated map view circle radius" />
+    <MESSAGE value="Put in ability to load prior projects" />
+    <MESSAGE value="Kept Project Details in review mode" />
+    <MESSAGE value="Expanded Review details" />
+    <MESSAGE value="Adjusted Map Display details" />
+    <MESSAGE value="Adjusted manual review to simplify" />
+    <option name="LAST_COMMIT_MESSAGE" value="Adjusted manual review to simplify" />
   </component>
 </project>
