@@ -4,8 +4,8 @@ from streamlit_folium import st_folium
 from supabase import create_client
 import os
 from dotenv import load_dotenv
-from modules.google_search import geocode_location, generate_grid
-from math import cos, radians
+from modules.google_search import geocode_location
+from geopy.distance import geodesic
 
 # Load environment
 load_dotenv()
@@ -20,9 +20,11 @@ def tier_color(tier):
         3: "red"
     }.get(tier, "gray")
 
+def calc_distance_km(lat1, lng1, lat2, lng2):
+    return geodesic((lat1, lng1), (lat2, lng2)).km
+
 def map_review(project_config):
     project_id = project_config["id"]
-    max_radius_km = project_config["max_radius_km"]
     location = project_config["location"]
 
     # Geocode original search location to use as true center
@@ -32,9 +34,6 @@ def map_review(project_config):
         st.error("Failed to geocode project location.")
         return
 
-    # Generate search grid and draw circles for each point
-    search_points = generate_grid(center_lat, center_lng, max_radius_km)
-
     # Fetch businesses
     response = supabase.table("search_results").select("*").eq("project_id", project_id).execute()
     businesses = response.data
@@ -43,20 +42,28 @@ def map_review(project_config):
         st.warning("No businesses found for this project.")
         return
 
+    # Compute farthest distance from center to any business
+    farthest_km = max(
+        calc_distance_km(center_lat, center_lng, b["latitude"], b["longitude"])
+        for b in businesses
+        if b.get("latitude") and b.get("longitude")
+    )
+
+    # Create map
     m = folium.Map(location=[center_lat, center_lng], zoom_start=12)
 
-    # Add a light blue circle for each search point (5km radius)
-    for lat, lng in search_points:
-        folium.Circle(
-            location=[lat, lng],
-            radius=5000,  # 5km radius
-            color="blue",
-            fill=True,
-            fill_opacity=0.03,
-            weight=0.5
-        ).add_to(m)
+    # Draw single circle that covers all returned businesses
+    folium.Circle(
+        location=[center_lat, center_lng],
+        radius=farthest_km * 1000,
+        color="blue",
+        fill=True,
+        fill_opacity=0.05,
+        weight=0.7,
+        popup=f"Search Radius: {farthest_km:.2f} km"
+    ).add_to(m)
 
-    # Add pins
+    # Add pins for businesses
     for b in businesses:
         lat = b.get("latitude")
         lng = b.get("longitude")
