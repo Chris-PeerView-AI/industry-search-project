@@ -4,14 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Tested Enigma API to pull Golf Cave as an example">
-      <change afterPath="$PROJECT_DIR$/modules/TEST_Engima_Supabase_Ingest.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/pull_enigma_ui.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed lost main_ui.py code">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_ui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/pull_enigma_golfcave_clark_details.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/TEST_pull_enigma_golfcave_clark_details.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/pull_enigma_location_by_zip_and_match.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/TEST_pull_enigma_location_by_zip_and_match.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pull_enigma_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/pull_enigma_ui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,6 +40,7 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Python.Engima_Supabase_Ingest.executor": "Run",
+    "Python.main_ui.executor": "Run",
     "Python.pull_enigma_business_details.executor": "Run",
     "Python.pull_enigma_golfcave_clark_details.executor": "Run",
     "Python.pull_enigma_location_by_address.executor": "Run",
@@ -62,29 +58,7 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.pull_enigma_ui">
-    <configuration name="OLD_pull_enigma_location_by_address" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="industry_search_project" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/OLD_pull_enigma_location_by_address.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.main_ui">
     <configuration name="TEST_Engima_Supabase_Ingest" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
@@ -151,6 +125,28 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="main_ui" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main_ui.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="pull_enigma_ui" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
@@ -175,11 +171,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.main_ui" />
         <item itemvalue="Python.pull_enigma_ui" />
         <item itemvalue="Python.TEST_Engima_Supabase_Ingest" />
         <item itemvalue="Python.TEST_pull_enigma_golfcave_clark_details" />
         <item itemvalue="Python.TEST_pull_enigma_location_by_zip_and_match" />
-        <item itemvalue="Python.OLD_pull_enigma_location_by_address" />
       </list>
     </recent_temporary>
   </component>
@@ -326,7 +322,23 @@
       <option name="project" value="LOCAL" />
       <updated>1753803504295</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="Streamlit UI for Enigma Pulls. Still Not complete but Streamlit runs and pulls project details">
+      <option name="closed" value="true" />
+      <created>1753817410520</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1753817410520</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Fixed lost main_ui.py code">
+      <option name="closed" value="true" />
+      <created>1753817735643</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1753817735643</updated>
+    </task>
+    <option name="localTasksCounter" value="19" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -345,6 +357,8 @@
     <MESSAGE value="Adjusted Map Display details" />
     <MESSAGE value="Adjusted manual review to simplify" />
     <MESSAGE value="Tested Enigma API to pull Golf Cave as an example" />
-    <option name="LAST_COMMIT_MESSAGE" value="Tested Enigma API to pull Golf Cave as an example" />
+    <MESSAGE value="Streamlit UI for Enigma Pulls. Still Not complete but Streamlit runs and pulls project details" />
+    <MESSAGE value="Fixed lost main_ui.py code" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed lost main_ui.py code" />
   </component>
 </project>

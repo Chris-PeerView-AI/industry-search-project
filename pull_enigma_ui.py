@@ -20,20 +20,20 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # --- UI ---
 st.title("📡 Enigma Data Pull Tool")
 
-# Load available projects from Supabase
+# Load available search projects from Supabase
 def fetch_projects():
-    response = supabase.table("projects").select("project_id, project_name").order("project_name").execute()
+    response = supabase.table("search_projects").select("id, name").order("name").execute()
     return response.data
 
 projects = fetch_projects()
-project_options = {p["project_name"] or p["project_id"]: p["project_id"] for p in projects}
+project_options = {p["name"]: p["id"] for p in projects}
 
 selected_project_name = st.selectbox("Select a Project", list(project_options.keys()))
 project_id = project_options[selected_project_name]
 
 if project_id:
     # Step 1: Validate project exists
-    project_check = supabase.table("projects").select("project_id").eq("project_id", project_id).execute()
+    project_check = supabase.table("search_projects").select("id").eq("id", project_id).execute()
     if not project_check.data:
         st.error("Project not found. Please select a valid project.")
     else:
