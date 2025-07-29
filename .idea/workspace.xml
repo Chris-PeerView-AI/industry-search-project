@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="One big circle in Map Review">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/map_view_review.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/map_view_review.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/google_search.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/google_search.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -370,7 +370,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753820312533</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="One big circle in Map Review">
+      <option name="closed" value="true" />
+      <created>1753821546410</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1753821546410</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -394,6 +402,7 @@
     <MESSAGE value="Moved from wrong supabase table projects to search_projects" />
     <MESSAGE value="Extracting address information cleaner" />
     <MESSAGE value="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few" />
+    <MESSAGE value="One big circle in Map Review" />
+    <option name="LAST_COMMIT_MESSAGE" value="One big circle in Map Review" />
   </component>
 </project>

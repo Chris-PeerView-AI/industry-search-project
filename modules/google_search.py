@@ -60,18 +60,26 @@ def google_nearby_search(query: str, lat: float, lng: float, radius_km: int) -> 
         "key": GOOGLE_API_KEY,
     }
     all_results = []
-    while True:
-        r = requests.get(url, params=params)
-        data = r.json()
-        results = data.get("results", [])
-        all_results.extend(results)
-        token = data.get("next_page_token")
-        if token:
-            import time
-            time.sleep(2)
-            params["pagetoken"] = token
-        else:
-            break
+    try:
+        while True:
+            r = requests.get(url, params=params)
+            data = r.json()
+
+            if 'error_message' in data:
+                st.warning(f"Google API warning: {data['error_message']}")
+                break
+
+            results = data.get("results", [])
+            all_results.extend(results)
+            token = data.get("next_page_token")
+            if token:
+                import time
+                time.sleep(2)
+                params["pagetoken"] = token
+            else:
+                break
+    except Exception as e:
+        st.error(f"Google Nearby Search failed: {e}")
     return all_results
 
 def scrape_site(url: str) -> Dict[str, str]:
@@ -168,10 +176,12 @@ def search_and_expand(project: Dict[str, Any]) -> bool:
     for i, (lat, lng) in enumerate(points):
         progress.progress(i / len(points), text=f"Searching at ({lat:.4f}, {lng:.4f})")
         results = google_nearby_search(query, lat, lng, SEARCH_RADIUS_KM)
+        new_found = 0
         for r in results:
             pid = r.get("place_id")
             if pid and pid not in found:
                 found[pid] = r
+                new_found += 1
         if len(found) >= target:
             break
     progress.empty()
