@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Interim step with adding PDF export">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="First draft of Report PDF Output">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/pdf_export.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/pdf_export.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -430,11 +429,18 @@
       <option name="project" value="LOCAL" />
       <updated>1753908836806</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="First draft of Report PDF Output">
+      <option name="closed" value="true" />
+      <created>1753909760469</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1753909760469</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Placeholder schafolding" />
     <MESSAGE value="Google Search MVP set up" />
     <MESSAGE value="Updated classification scheme to use LLM" />
     <MESSAGE value="Spiral search pattern for google places search" />
@@ -459,6 +465,7 @@
     <MESSAGE value="Test for Summary stats works" />
     <MESSAGE value="Updated UI Benchmarking Map" />
     <MESSAGE value="Interim step with adding PDF export" />
-    <option name="LAST_COMMIT_MESSAGE" value="Interim step with adding PDF export" />
+    <MESSAGE value="First draft of Report PDF Output" />
+    <option name="LAST_COMMIT_MESSAGE" value="First draft of Report PDF Output" />
   </component>
 </project>
