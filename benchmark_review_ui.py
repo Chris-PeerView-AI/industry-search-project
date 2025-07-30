@@ -73,19 +73,57 @@ if project_id:
                 st.success(f"Updated benchmark status to '{new_val}'")
                 st.rerun()
 
-        map_df = pd.DataFrame({"lat": [row["latitude"]], "lon": [row["longitude"]]})
-        st.map(map_df)
+import folium
+from streamlit_folium import st_folium
+from geopy.distance import geodesic
 
-        st.divider()
-        st.header("📋 Full Table")
-        summary_cols = ["name", "annual_revenue", "yoy_growth", "ticket_size", "transaction_count", "seasonality_ratio", "benchmark"]
-        display_df = df[summary_cols].sort_values("annual_revenue", ascending=False).rename(columns={
-            "name": "Business",
-            "annual_revenue": "Revenue",
-            "yoy_growth": "YoY Growth",
-            "ticket_size": "Ticket Size",
-            "transaction_count": "Transactions",
-            "seasonality_ratio": "Seasonality",
-            "benchmark": "Benchmark"
-        })
-        st.dataframe(display_df)
+# Build folium map with radius overlay from row
+center_lat, center_lng = row["latitude"], row["longitude"]
+m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
+
+# Compute farthest distance from center to any business in the same project
+all_biz_res = supabase.table("enigma_summaries").select("latitude, longitude").eq("project_id", project_id).execute()
+all_biz = pd.DataFrame(all_biz_res.data)
+
+farthest_km = max(
+    geodesic((center_lat, center_lng), (lat, lng)).km
+    for lat, lng in zip(all_biz["latitude"], all_biz["longitude"]) if pd.notnull(lat) and pd.notnull(lng)
+)
+
+folium.Circle(
+    location=[center_lat, center_lng],
+    radius=farthest_km * 1000,
+    color="blue",
+    fill=True,
+    fill_opacity=0.05,
+    weight=0.7,
+    popup=f"Search Radius: {farthest_km:.2f} km"
+).add_to(m)
+
+# Add markers for all businesses
+for _, biz in df.iterrows():
+    color = "gray" if biz["benchmark"] != "trusted" else "green"
+    if biz["id"] == row["id"]:
+        color = "yellow"
+
+    folium.Marker(
+        location=[biz["latitude"], biz["longitude"]],
+        popup=biz["name"],
+        icon=folium.Icon(color=color)
+    ).add_to(m)
+
+st_folium(m, width=800, height=500)
+
+st.divider()
+st.header("📋 Full Table")
+summary_cols = ["name", "annual_revenue", "yoy_growth", "ticket_size", "transaction_count", "seasonality_ratio", "benchmark"]
+display_df = df[summary_cols].sort_values("annual_revenue", ascending=False).rename(columns={
+    "name": "Business",
+    "annual_revenue": "Revenue",
+    "yoy_growth": "YoY Growth",
+    "ticket_size": "Ticket Size",
+    "transaction_count": "Transactions",
+    "seasonality_ratio": "Seasonality",
+    "benchmark": "Benchmark"
+})
+st.dataframe(display_df)
