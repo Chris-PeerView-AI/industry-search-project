@@ -32,25 +32,21 @@ selected_project_name = st.selectbox("Select a Project", list(project_options.ke
 project_id = project_options[selected_project_name]
 
 if project_id:
-    # Step 1: Validate project exists
     project_check = supabase.table("search_projects").select("id").eq("id", project_id).execute()
     if not project_check.data:
         st.error("Project not found. Please select a valid project.")
     else:
-        # Step 2: Load businesses from search_results
         with st.spinner("Loading businesses..."):
             response = supabase.table("search_results").select("*").eq("project_id", project_id).execute()
             all_businesses = response.data
 
-        # Group by tier and show filter
         available_tiers = sorted(set([b.get("tier", 3) for b in all_businesses if b.get("tier") in [1, 2, 3]]))
         default_tiers = [t for t in [1] if t in available_tiers] or available_tiers[:1]
         selected_tiers = st.multiselect("Select Tiers to Pull From", available_tiers, default=default_tiers)
         filtered_businesses = [b for b in all_businesses if b.get("tier") in selected_tiers]
 
-        # Step 3: Check Enigma pull status
         with st.spinner("Checking existing Enigma data..."):
-            existing = supabase.table("enigma_businesses").select("place_id").execute().data
+            existing = supabase.table("enigma_businesses").select("place_id, business_name").eq("project_id", project_id).execute().data
             existing_place_ids = set(e['place_id'] for e in existing if e.get("place_id"))
 
         businesses_to_pull = []
@@ -68,8 +64,8 @@ if project_id:
 
         if businesses_to_pull:
             st.subheader("📋 Select Businesses to Pull")
+            selected_rows = businesses_to_pull.copy()  # ✅ default to all selected
 
-            selected_rows = []
             for i, b in enumerate(businesses_to_pull):
                 with st.expander(f"{b['name']} ({b.get('city')}, {b.get('state')})", expanded=False):
                     col1, col2 = st.columns([6, 1])
@@ -77,12 +73,11 @@ if project_id:
                         st.write(f"Place ID: {b.get('place_id')}")
                         st.write(f"Tier: {b.get('tier')}")
                     with col2:
-                        if st.checkbox("Pull?", key=f"pull_{i}"):
-                            selected_rows.append(b)
+                        st.checkbox("Pull?", key=f"pull_{i}", value=True)  # ✅ prechecked by default
 
-            st.write(f"✅ You selected {len(selected_rows)} businesses to pull")
+            st.write(f"✅ {len(selected_rows)} businesses are pre-selected to pull")
 
-            if selected_rows and st.button("Submit Selected", key="submit_selected"):
+            if st.button("Submit Selected", key="submit_selected"):
                 pull_session_id = str(uuid.uuid4())
                 pull_timestamp = datetime.utcnow()
 
@@ -92,8 +87,6 @@ if project_id:
                             b["project_id"] = project_id
                             b["pull_session_id"] = pull_session_id
                             b["pull_timestamp"] = pull_timestamp.isoformat()
-
-                            # ✅ Ensure google_places_id is set
                             b["google_places_id"] = b.get("google_places_id") or b.get("place_id")
 
                             pull_enigma_data_for_business(b)
@@ -104,3 +97,7 @@ if project_id:
         if skipped:
             with st.expander("⚠️ Skipped Businesses (Missing place_id)"):
                 st.write([b["name"] for b in skipped])
+
+        if existing:
+            with st.expander("📊 Businesses with Enigma Data Pulled"):
+                st.write([e["business_name"] for e in existing if e.get("business_name")])

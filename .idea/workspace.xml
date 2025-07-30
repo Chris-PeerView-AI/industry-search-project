@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="One big circle in Map Review">
-      <change afterPath="$PROJECT_DIR$/modules/TEST_BarkZoom.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Enigma data is pulled and stored in Supabase">
+      <change afterPath="$PROJECT_DIR$/modules/TEST_Business_Metrics_Extractor.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pull_enigma_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/pull_enigma_ui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -43,6 +42,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Python.Engima_Supabase_Ingest.executor": "Run",
     "Python.TEST_BarkZoom.executor": "Run",
+    "Python.TEST_Business_Metrics_Extractor.executor": "Run",
     "Python.TEST_pull_enigma_golfcave_clark_details.executor": "Run",
     "Python.main_ui.executor": "Run",
     "Python.pull_enigma_business_details.executor": "Run",
@@ -62,7 +62,7 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.TEST_BarkZoom">
+  <component name="RunManager" selected="Python.TEST_Business_Metrics_Extractor">
     <configuration name="TEST_BarkZoom" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
@@ -85,7 +85,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="TEST_Engima_Supabase_Ingest" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="TEST_Business_Metrics_Extractor" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -98,7 +98,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_Engima_Supabase_Ingest.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_Business_Metrics_Extractor.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -175,11 +175,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.TEST_BarkZoom" />
+        <item itemvalue="Python.TEST_Business_Metrics_Extractor" />
         <item itemvalue="Python.TEST_pull_enigma_golfcave_clark_details" />
+        <item itemvalue="Python.TEST_BarkZoom" />
         <item itemvalue="Python.main_ui" />
         <item itemvalue="Python.pull_enigma_ui" />
-        <item itemvalue="Python.TEST_Engima_Supabase_Ingest" />
       </list>
     </recent_temporary>
   </component>
@@ -390,7 +390,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753822763984</updated>
     </task>
-    <option name="localTasksCounter" value="25" />
+    <task id="LOCAL-00025" summary="Enigma data is pulled and stored in Supabase">
+      <option name="closed" value="true" />
+      <created>1753897643959</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1753897643959</updated>
+    </task>
+    <option name="localTasksCounter" value="26" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -415,6 +423,7 @@
     <MESSAGE value="Extracting address information cleaner" />
     <MESSAGE value="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few" />
     <MESSAGE value="One big circle in Map Review" />
-    <option name="LAST_COMMIT_MESSAGE" value="One big circle in Map Review" />
+    <MESSAGE value="Enigma data is pulled and stored in Supabase" />
+    <option name="LAST_COMMIT_MESSAGE" value="Enigma data is pulled and stored in Supabase" />
   </component>
 </project>
