@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from modules.business_metrics import generate_enigma_summaries, summarize_benchmark_stats
-from modules.pdf_export import export_project_pdf  # Make sure this matches your folder structure
+from modules.pdf_export import export_project_pdf
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -40,6 +40,15 @@ if project_id:
             st.success("Benchmark summary updated.")
         if col3.button("📤 Export PDF Report"):
             export_project_pdf(project_id, supabase)
+
+        if st.session_state.get("pdf_ready") and st.session_state.get("pdf_path"):
+            with open(st.session_state["pdf_path"], "rb") as f:
+                st.download_button(
+                    label="📥 Download PDF Report",
+                    data=f,
+                    file_name="benchmark_report.pdf",
+                    mime="application/pdf"
+                )
 
         benchmark_summary = supabase.table("benchmark_summaries").select("*").eq("project_id", project_id).execute().data
 

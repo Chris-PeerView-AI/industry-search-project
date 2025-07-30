@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Updated UI Benchmarking Map">
-      <change afterPath="$PROJECT_DIR$/modules/pdf_export.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Interim step with adding PDF export">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pdf_export.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/pdf_export.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -422,7 +422,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753906353668</updated>
     </task>
-    <option name="localTasksCounter" value="29" />
+    <task id="LOCAL-00029" summary="Interim step with adding PDF export">
+      <option name="closed" value="true" />
+      <created>1753908836806</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1753908836806</updated>
+    </task>
+    <option name="localTasksCounter" value="30" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
@@ -450,6 +458,7 @@
     <MESSAGE value="Enigma data is pulled and stored in Supabase" />
     <MESSAGE value="Test for Summary stats works" />
     <MESSAGE value="Updated UI Benchmarking Map" />
-    <option name="LAST_COMMIT_MESSAGE" value="Updated UI Benchmarking Map" />
+    <MESSAGE value="Interim step with adding PDF export" />
+    <option name="LAST_COMMIT_MESSAGE" value="Interim step with adding PDF export" />
   </component>
 </project>
