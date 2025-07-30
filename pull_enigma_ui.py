@@ -67,27 +67,35 @@ if project_id:
         st.write(f"Remaining to pull from Enigma: {len(businesses_to_pull)}")
 
         if businesses_to_pull:
-            st.subheader("📋 Preview Businesses to Pull")
-            st.dataframe([
-                {
-                    "Name": b["name"],
-                    "City": b.get("city"),
-                    "State": b.get("state"),
-                    "Place ID": b.get("place_id"),
-                    "Tier": b.get("tier")
-                } for b in businesses_to_pull
-            ])
+            st.subheader("📋 Select Businesses to Pull")
 
-            if st.button("Pull Enigma Data Now"):
+            selected_rows = []
+            for i, b in enumerate(businesses_to_pull):
+                with st.expander(f"{b['name']} ({b.get('city')}, {b.get('state')})", expanded=False):
+                    col1, col2 = st.columns([6, 1])
+                    with col1:
+                        st.write(f"Place ID: {b.get('place_id')}")
+                        st.write(f"Tier: {b.get('tier')}")
+                    with col2:
+                        if st.checkbox("Pull?", key=f"pull_{i}"):
+                            selected_rows.append(b)
+
+            st.write(f"✅ You selected {len(selected_rows)} businesses to pull")
+
+            if selected_rows and st.button("Submit Selected", key="submit_selected"):
                 pull_session_id = str(uuid.uuid4())
                 pull_timestamp = datetime.utcnow()
 
                 with st.spinner("Fetching from Enigma and storing in Supabase..."):
-                    for b in businesses_to_pull:
+                    for b in selected_rows:
                         try:
                             b["project_id"] = project_id
                             b["pull_session_id"] = pull_session_id
                             b["pull_timestamp"] = pull_timestamp.isoformat()
+
+                            # ✅ Ensure google_places_id is set
+                            b["google_places_id"] = b.get("google_places_id") or b.get("place_id")
+
                             pull_enigma_data_for_business(b)
                         except Exception as e:
                             st.error(f"❌ Failed to pull data for {b['name']}: {e}")

@@ -5,8 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="One big circle in Map Review">
+      <change afterPath="$PROJECT_DIR$/modules/TEST_BarkZoom.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/google_search.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/google_search.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pull_enigma_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/pull_enigma_ui.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -40,6 +42,8 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "Python.Engima_Supabase_Ingest.executor": "Run",
+    "Python.TEST_BarkZoom.executor": "Run",
+    "Python.TEST_pull_enigma_golfcave_clark_details.executor": "Run",
     "Python.main_ui.executor": "Run",
     "Python.pull_enigma_business_details.executor": "Run",
     "Python.pull_enigma_golfcave_clark_details.executor": "Run",
@@ -58,7 +62,29 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.main_ui">
+  <component name="RunManager" selected="Python.TEST_BarkZoom">
+    <configuration name="TEST_BarkZoom" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_BarkZoom.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="TEST_Engima_Supabase_Ingest" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
@@ -95,28 +121,6 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_pull_enigma_golfcave_clark_details.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="TEST_pull_enigma_location_by_zip_and_match" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="industry_search_project" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_pull_enigma_location_by_zip_and_match.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -171,11 +175,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.TEST_BarkZoom" />
+        <item itemvalue="Python.TEST_pull_enigma_golfcave_clark_details" />
         <item itemvalue="Python.main_ui" />
         <item itemvalue="Python.pull_enigma_ui" />
         <item itemvalue="Python.TEST_Engima_Supabase_Ingest" />
-        <item itemvalue="Python.TEST_pull_enigma_golfcave_clark_details" />
-        <item itemvalue="Python.TEST_pull_enigma_location_by_zip_and_match" />
       </list>
     </recent_temporary>
   </component>
@@ -378,7 +382,15 @@
       <option name="project" value="LOCAL" />
       <updated>1753821546410</updated>
     </task>
-    <option name="localTasksCounter" value="24" />
+    <task id="LOCAL-00024" summary="One big circle in Map Review">
+      <option name="closed" value="true" />
+      <created>1753822763984</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1753822763984</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
