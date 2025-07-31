@@ -4,11 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Adjusted automated PDF output. Moving onto Powerpoint template output">
-      <change afterPath="$PROJECT_DIR$/modules/test_01_download_template.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/test_02_edit_map_slide.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/test_03_edit_summary_slide.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Created three test files to create powerpoint outputs">
+      <change afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/sample_chart.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/test_01_download_template.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/test_01_download_templates.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -45,6 +45,7 @@
     "Python.TEST_BarkZoom.executor": "Run",
     "Python.TEST_Business_Metrics_Extractor.executor": "Run",
     "Python.TEST_pull_enigma_golfcave_clark_details.executor": "Run",
+    "Python.generate_project_report.executor": "Run",
     "Python.main_ui.executor": "Run",
     "Python.pull_enigma_business_details.executor": "Run",
     "Python.pull_enigma_golfcave_clark_details.executor": "Run",
@@ -58,15 +59,19 @@
     "Python.test_enigma_search.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "main"
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/christopherjohnson/Desktop/PeerView AI/industry_search_project/modules"
   }
 }]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/modules" />
+    </key>
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.test_03_edit_summary_slide">
+  <component name="RunManager" selected="Python.generate_project_report">
     <configuration name="TEST_Business_Metrics_Extractor" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
@@ -89,7 +94,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="TEST_pull_enigma_golfcave_clark_details" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="generate_project_report" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -102,7 +107,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_pull_enigma_golfcave_clark_details.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/generate_project_report.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -111,7 +116,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="test_01_download_template" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="test_01_download_templates" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -124,7 +129,7 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/test_01_download_template.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/test_01_download_templates.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -179,11 +184,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.generate_project_report" />
+        <item itemvalue="Python.test_01_download_templates" />
         <item itemvalue="Python.test_03_edit_summary_slide" />
         <item itemvalue="Python.test_02_edit_map_slide" />
-        <item itemvalue="Python.test_01_download_template" />
         <item itemvalue="Python.TEST_Business_Metrics_Extractor" />
-        <item itemvalue="Python.TEST_pull_enigma_golfcave_clark_details" />
       </list>
     </recent_temporary>
   </component>
@@ -458,11 +463,18 @@
       <option name="project" value="LOCAL" />
       <updated>1753970765788</updated>
     </task>
-    <option name="localTasksCounter" value="33" />
+    <task id="LOCAL-00033" summary="Created three test files to create powerpoint outputs">
+      <option name="closed" value="true" />
+      <created>1753974161704</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1753974161704</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Spiral search pattern for google places search" />
     <MESSAGE value="Progress Status while running" />
     <MESSAGE value="Refining Classification and adding Open AI capabilities" />
     <MESSAGE value="Added Lat and Long to business records" />
@@ -487,6 +499,7 @@
     <MESSAGE value="First draft of Report PDF Output" />
     <MESSAGE value="Fixed Ticket Price past year value" />
     <MESSAGE value="Adjusted automated PDF output. Moving onto Powerpoint template output" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adjusted automated PDF output. Moving onto Powerpoint template output" />
+    <MESSAGE value="Created three test files to create powerpoint outputs" />
+    <option name="LAST_COMMIT_MESSAGE" value="Created three test files to create powerpoint outputs" />
   </component>
 </project>

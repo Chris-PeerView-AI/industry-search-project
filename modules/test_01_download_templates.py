@@ -12,10 +12,10 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 # Files to download: (Google Drive name → local filename)
 TEMPLATES = {
-    "2025_08_MarketOverview_Basic_MapTemplate.pptx": "downloaded_map_template.pptx",
-    "2025_08_MarketOverview_Basic_IndustrySummary.pptx": "downloaded_summary_template.pptx"
+    "2025_08_MarketOverview_Basic_TitleSlide.pptx": "modules/downloaded_title_template.pptx",
+    "2025_08_MarketOverview_Basic_Exhibit.pptx": "modules/downloaded_exhibit_template.pptx",
+    "2025_08_MarketOverview_Basic_IndustrySummary.pptx": "modules/downloaded_summary_template.pptx"
 }
-
 
 def download_file_from_drive(service, drive_filename, local_filename):
     print(f"🔍 Searching for: {drive_filename}")
@@ -33,6 +33,7 @@ def download_file_from_drive(service, drive_filename, local_filename):
     print(f"✅ Found: {drive_filename} (ID: {file_id})")
 
     request = service.files().get_media(fileId=file_id)
+    os.makedirs(os.path.dirname(local_filename), exist_ok=True)
     fh = io.FileIO(local_filename, 'wb')
     downloader = MediaIoBaseDownload(fh, request)
     done = False
@@ -42,14 +43,12 @@ def download_file_from_drive(service, drive_filename, local_filename):
 
     print(f"✅ Downloaded to: {local_filename}")
 
-
 def download_all_templates():
     creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
     service = build('drive', 'v3', credentials=creds)
 
     for drive_name, local_name in TEMPLATES.items():
         download_file_from_drive(service, drive_name, local_name)
-
 
 if __name__ == "__main__":
     download_all_templates()
