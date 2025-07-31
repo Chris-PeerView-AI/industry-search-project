@@ -17,6 +17,8 @@ SUMMARY_TEMPLATE = os.path.join(MODULES_DIR, "downloaded_summary_template.pptx")
 OUTPUT_DIR = os.path.join(MODULES_DIR, "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+REVENUE_SLIDE_TITLE = "Exhibit 1: Annual Revenue"
+
 def generate_revenue_chart(path, summaries):
     print("📈 Generating revenue chart from Supabase data")
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
@@ -52,7 +54,7 @@ def generate_chart_slide(chart_title, image_path, summary_text):
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
-        if "{TBD TITLE}" in shape.text:
+        if "Exhibit {TBD}" in shape.text:
             shape.text_frame.clear()
             p = shape.text_frame.paragraphs[0]
             run = p.add_run()
@@ -102,8 +104,7 @@ def export_project_pptx(project_id: str, supabase):
     else:
         summary_text = "This chart shows the annual revenue for all trusted businesses."
 
-    chart_title = "Exhibit 1: Annual Revenue"
-    ppt = generate_chart_slide(chart_title, image_path, summary_text)
+    ppt = generate_chart_slide(REVENUE_SLIDE_TITLE, image_path, summary_text)
     project_output_dir = os.path.join(OUTPUT_DIR, project_id)
     os.makedirs(project_output_dir, exist_ok=True)
 
