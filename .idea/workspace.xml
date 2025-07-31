@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Created three test files to create powerpoint outputs">
-      <change afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/sample_chart.png" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Working on the generate report code. Got the templates downlaoded the title page added to a new presentation">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/test_01_download_template.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/test_01_download_templates.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -471,11 +469,18 @@
       <option name="project" value="LOCAL" />
       <updated>1753974161704</updated>
     </task>
-    <option name="localTasksCounter" value="34" />
+    <task id="LOCAL-00034" summary="Working on the generate report code. Got the templates downlaoded the title page added to a new presentation">
+      <option name="closed" value="true" />
+      <created>1753977587889</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1753977587889</updated>
+    </task>
+    <option name="localTasksCounter" value="35" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Progress Status while running" />
     <MESSAGE value="Refining Classification and adding Open AI capabilities" />
     <MESSAGE value="Added Lat and Long to business records" />
     <MESSAGE value="Added a map view" />
@@ -500,6 +505,7 @@
     <MESSAGE value="Fixed Ticket Price past year value" />
     <MESSAGE value="Adjusted automated PDF output. Moving onto Powerpoint template output" />
     <MESSAGE value="Created three test files to create powerpoint outputs" />
-    <option name="LAST_COMMIT_MESSAGE" value="Created three test files to create powerpoint outputs" />
+    <MESSAGE value="Working on the generate report code. Got the templates downlaoded the title page added to a new presentation" />
+    <option name="LAST_COMMIT_MESSAGE" value="Working on the generate report code. Got the templates downlaoded the title page added to a new presentation" />
   </component>
 </project>
