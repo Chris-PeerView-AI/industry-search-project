@@ -134,6 +134,21 @@ def export_project_pdf(project_id, supabase):
                 pdf.cell(180, 10, txt=biz["name"], ln=True)
                 pdf.set_x(10)
                 pdf.cell(180, 10, txt=biz.get("address", ""), ln=True)
+
+                # Revenue chart
+                rev = biz["annual_revenue"]
+                rev_last = rev / (1 + biz["yoy_growth"])
+                rev_chart_path = save_bar_chart(f"Revenue", ["Last Year", "This Year"], [rev_last, rev], f"rev_{i+j}.png", arrow=True)
+                pdf.image(rev_chart_path, x=10, y=y_offset + 20, w=90)
+
+                # Ticket size chart
+                transactions = biz["transaction_count"]
+                ticket_this_year = biz["ticket_size"]
+                ticket_last_year = (rev / (1 + biz["yoy_growth"])) / (transactions / (1 + biz["yoy_growth"])) if transactions else 0
+                tix_chart_path = save_bar_chart(f"Ticket Size", ["Last Year", "This Year"], [ticket_last_year, ticket_this_year], f"tix_{i+j}.png", arrow=True)
+                pdf.image(tix_chart_path, x=110, y=y_offset + 20, w=90)
+
+                # Map
                 small_map = folium.Map(location=[biz["latitude"], biz["longitude"]], zoom_start=13)
                 folium.Marker(location=[biz["latitude"], biz["longitude"]], icon=folium.Icon(color="blue")).add_to(small_map)
                 submap_path = os.path.join(tmpdirname, f"map_{i+j}.png")
@@ -143,6 +158,7 @@ def export_project_pdf(project_id, supabase):
                 driver.get(f"file://{submap_html}")
                 driver.save_screenshot(submap_path)
                 driver.quit()
+                pdf.image(submap_path, x=10, y=y_offset + 90, w=90)
                 pdf.image(submap_path, x=10, y=y_offset + 20, w=90)
 
         pdf.add_page()

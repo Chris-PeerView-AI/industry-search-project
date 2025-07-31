@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="First draft of Report PDF Output">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed Ticket Price past year value">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/pdf_export.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/pdf_export.py" afterDir="false" />
     </list>
@@ -437,11 +437,18 @@
       <option name="project" value="LOCAL" />
       <updated>1753909760469</updated>
     </task>
-    <option name="localTasksCounter" value="31" />
+    <task id="LOCAL-00031" summary="Fixed Ticket Price past year value">
+      <option name="closed" value="true" />
+      <created>1753910651248</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1753910651248</updated>
+    </task>
+    <option name="localTasksCounter" value="32" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Google Search MVP set up" />
     <MESSAGE value="Updated classification scheme to use LLM" />
     <MESSAGE value="Spiral search pattern for google places search" />
     <MESSAGE value="Progress Status while running" />
@@ -466,6 +473,7 @@
     <MESSAGE value="Updated UI Benchmarking Map" />
     <MESSAGE value="Interim step with adding PDF export" />
     <MESSAGE value="First draft of Report PDF Output" />
-    <option name="LAST_COMMIT_MESSAGE" value="First draft of Report PDF Output" />
+    <MESSAGE value="Fixed Ticket Price past year value" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed Ticket Price past year value" />
   </component>
 </project>
