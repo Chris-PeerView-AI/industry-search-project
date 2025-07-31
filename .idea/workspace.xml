@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Each page is produced individaully and saved to a project folder. Only have the first title slide and revenue exhibit ready so far.">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed title on exhibit">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
     </list>
@@ -485,11 +485,18 @@
       <option name="project" value="LOCAL" />
       <updated>1753993043359</updated>
     </task>
-    <option name="localTasksCounter" value="36" />
+    <task id="LOCAL-00036" summary="Fixed title on exhibit">
+      <option name="closed" value="true" />
+      <created>1753993509023</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1753993509023</updated>
+    </task>
+    <option name="localTasksCounter" value="37" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Added Lat and Long to business records" />
     <MESSAGE value="Added a map view" />
     <MESSAGE value="Updated map view circle radius" />
     <MESSAGE value="Put in ability to load prior projects" />
@@ -514,6 +521,7 @@
     <MESSAGE value="Created three test files to create powerpoint outputs" />
     <MESSAGE value="Working on the generate report code. Got the templates downlaoded the title page added to a new presentation" />
     <MESSAGE value="Each page is produced individaully and saved to a project folder. Only have the first title slide and revenue exhibit ready so far." />
-    <option name="LAST_COMMIT_MESSAGE" value="Each page is produced individaully and saved to a project folder. Only have the first title slide and revenue exhibit ready so far." />
+    <MESSAGE value="Fixed title on exhibit" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed title on exhibit" />
   </component>
 </project>
