@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Growth Rate, Ticket Size and Market Size charts are drafted.">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="REmoving OpenAI from Generate Project Report">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/google_search.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/google_search.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -502,11 +501,18 @@
       <option name="project" value="LOCAL" />
       <updated>1753994490064</updated>
     </task>
-    <option name="localTasksCounter" value="38" />
+    <task id="LOCAL-00038" summary="REmoving OpenAI from Generate Project Report">
+      <option name="closed" value="true" />
+      <created>1753996757239</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1753996757239</updated>
+    </task>
+    <option name="localTasksCounter" value="39" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Updated map view circle radius" />
     <MESSAGE value="Put in ability to load prior projects" />
     <MESSAGE value="Kept Project Details in review mode" />
     <MESSAGE value="Expanded Review details" />
@@ -531,6 +537,7 @@
     <MESSAGE value="Each page is produced individaully and saved to a project folder. Only have the first title slide and revenue exhibit ready so far." />
     <MESSAGE value="Fixed title on exhibit" />
     <MESSAGE value="Growth Rate, Ticket Size and Market Size charts are drafted." />
-    <option name="LAST_COMMIT_MESSAGE" value="Growth Rate, Ticket Size and Market Size charts are drafted." />
+    <MESSAGE value="REmoving OpenAI from Generate Project Report" />
+    <option name="LAST_COMMIT_MESSAGE" value="REmoving OpenAI from Generate Project Report" />
   </component>
 </project>
