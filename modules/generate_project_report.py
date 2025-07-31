@@ -1,115 +1,34 @@
 import os
-import sys
+import subprocess
 from datetime import datetime
 from pptx import Presentation
 from pptx.util import Inches, Pt
+from dotenv import load_dotenv
+from supabase import create_client, Client
 import matplotlib.pyplot as plt
-from test_01_download_templates import download_all_templates
+from PIL import Image
 
-sys.stdout.reconfigure(line_buffering=True)
-print("✅ Script started")
-print("📦 Importing libraries successful")
-
-MODULES_DIR = os.path.dirname(__file__)
-TITLE_TEMPLATE = os.path.join(MODULES_DIR, "downloaded_title_template.pptx")
-EXHIBIT_TEMPLATE = os.path.join(MODULES_DIR, "downloaded_exhibit_template.pptx")
-SUMMARY_TEMPLATE = os.path.join(MODULES_DIR, "downloaded_summary_template.pptx")
-OUTPUT_DIR = os.path.join(MODULES_DIR, "output")
-os.makedirs(OUTPUT_DIR, exist_ok=True)
-
+# Constants
 REVENUE_SLIDE_TITLE = "Exhibit 1: Annual Revenue"
 YOY_SLIDE_TITLE = "Exhibit 2: YoY Growth"
 TICKET_SLIDE_TITLE = "Exhibit 3: Average Ticket Size"
 MARKET_SLIDE_TITLE = "Exhibit 4: Market Size"
+SUMMARY_SLIDE_TITLE = "Exhibit 5: Market Overview"
+TITLE_TEMPLATE = "modules/downloaded_title_template.pptx"
+EXHIBIT_TEMPLATE = "modules/downloaded_exhibit_template.pptx"
+SUMMARY_TEMPLATE = "modules/downloaded_summary_template.pptx"
 
-def generate_revenue_chart(path, summaries):
-    print("📈 Generating revenue chart from Supabase data")
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
-    if not trusted:
-        print("⚠️ No trusted businesses found. Skipping chart generation.")
-        return False
+# Load environment
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama3")
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    trusted = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["annual_revenue"] for b in trusted]
-    mean_val = sum(values) / len(values)
-    median_val = sorted(values)[len(values) // 2]
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    bars = ax.bar(names, [v / 1_000_000 for v in values], color="#4CAF50")
-    ax.axhline(mean_val / 1_000_000, color='blue', linestyle='--', label=f"Mean: ${mean_val / 1_000_000:.1f}M")
-    ax.axhline(median_val / 1_000_000, color='purple', linestyle=':', label=f"Median: ${median_val / 1_000_000:.1f}M")
-    ax.set_title("Annual Revenue")
-    ax.set_ylabel("Revenue ($M)")
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    print(f"✅ Revenue chart saved to: {path}")
-    return True
-
-def generate_yoy_chart(path, summaries):
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("yoy_growth") is not None]
-    if not trusted:
-        return False
-    trusted = sorted(trusted, key=lambda x: x["yoy_growth"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["yoy_growth"] * 100 for b in trusted]
-    avg = sum(values) / len(values)
-    median = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(names, values, color=["green" if v >= 0 else "red" for v in values])
-    ax.axhline(avg, color='blue', linestyle='--', label=f"Mean: {avg:.1f}%")
-    ax.axhline(median, color='purple', linestyle=':', label=f"Median: {median:.1f}%")
-    ax.set_title("YoY Growth")
-    ax.set_ylabel("Growth (%)")
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    return True
-
-def generate_ticket_chart(path, summaries):
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("ticket_size") is not None]
-    if not trusted:
-        return False
-    trusted = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["ticket_size"] for b in trusted]
-    mean_val = sum(values) / len(values)
-    median_val = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(names, values, color="#4CAF50")
-    ax.axhline(mean_val, color='blue', linestyle='--', label=f"Mean: ${mean_val:.0f}")
-    ax.axhline(median_val, color='purple', linestyle=':', label=f"Median: ${median_val:.0f}")
-    ax.set_title("Ticket Size")
-    ax.set_ylabel("Dollars ($)")
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    return True
-
-def generate_market_size_chart(path, summaries):
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("annual_revenue") is not None]
-    if not trusted:
-        return False
-    trusted_total = sum(b["annual_revenue"] for b in trusted)
-    projected_total = trusted_total * 1.5
-    fig, ax = plt.subplots(figsize=(5, 5))
-    bars = ax.bar(["Verified", "Projected"], [trusted_total / 1_000_000, projected_total / 1_000_000],
-                  color=["#4CAF50", "#C0C0C0"], edgecolor="black")
-    bars[1].set_hatch("//")
-    ax.set_title("Estimated Market Size")
-    ax.set_ylabel("Revenue ($M)")
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    return True
-
+# Utility Functions
 def generate_chart_slide(chart_title, image_path, summary_text):
     ppt = Presentation(EXHIBIT_TEMPLATE)
     slide = ppt.slides[0]
@@ -118,29 +37,77 @@ def generate_chart_slide(chart_title, image_path, summary_text):
             continue
         if "Exhibit {TBD}" in shape.text:
             shape.text_frame.clear()
-            run = shape.text_frame.paragraphs[0].add_run()
-            run.text = chart_title
-            run.font.name = "Montserrat"
-            run.font.size = Pt(36)
+            shape.text_frame.paragraphs[0].add_run().text = chart_title
         elif "{TBD ANALYSIS}" in shape.text:
             shape.text_frame.clear()
-            run = shape.text_frame.paragraphs[0].add_run()
-            run.text = summary_text
-            run.font.name = "Arial"
-            run.font.size = Pt(11)
-    left = Inches(0.75)
-    top = Inches(2.0)
+            shape.text_frame.paragraphs[0].add_run().text = summary_text
+
+    img = Image.open(image_path)
     width = Inches(7.5)
+    top = Inches(2.0)
+    left = Inches((10 - 7.5) / 2)
     slide.shapes.add_picture(image_path, left, top, width=width)
     return ppt
 
+def generate_summary_slide(output_path, trusted, end_date, summary_stats, summary_analysis):
+    ppt = Presentation(SUMMARY_TEMPLATE)
+    slide = ppt.slides[0]
+    for shape in slide.shapes:
+        if not shape.has_text_frame:
+            continue
+        if "{TBD TITLE}" in shape.text:
+            shape.text_frame.clear()
+            shape.text_frame.paragraphs[0].add_run().text = SUMMARY_SLIDE_TITLE
+        elif "{TBD AS OF DATE}" in shape.text:
+            shape.text = shape.text.replace("{TBD AS OF DATE}", end_date)
+        elif "{TBD TOTAL BUSINESSES}" in shape.text:
+            shape.text = shape.text.replace("{TBD TOTAL BUSINESSES}", str(summary_stats["total"]))
+        elif "{TBD TRUSTED BUSINESSES}" in shape.text:
+            shape.text = shape.text.replace("{TBD TRUSTED BUSINESSES}", str(summary_stats["trusted"]))
+        elif "{TBD: MEAN REVENUE}" in shape.text:
+            shape.text = shape.text.replace("{TBD: MEAN REVENUE}", f"${summary_stats['mean_revenue']:,.0f}")
+        elif "{TBD YOY GROWTH}" in shape.text:
+            shape.text = shape.text.replace("{TBD YOY GROWTH}", f"{summary_stats['mean_yoy']:.1f}%")
+        elif "{TBD MEDIAM REVENUE}" in shape.text:
+            shape.text = shape.text.replace("{TBD MEDIAM REVENUE}", f"${summary_stats['median_revenue']:,.0f}")
+        elif "{TBD AVERAGE TICKET SIZE}" in shape.text:
+            shape.text = shape.text.replace("{TBD AVERAGE TICKET SIZE}", f"${summary_stats['avg_ticket']:,.0f}")
+        elif "{TBD SUMMARY ANALYSIS}" in shape.text:
+            shape.text_frame.clear()
+            shape.text_frame.paragraphs[0].add_run().text = summary_analysis
+    ppt.save(output_path)
+
+def generate_llama_summary(slide_summaries: dict) -> str:
+    prompt = f"""
+You are a market research consultant. Based on the following summaries:
+
+1. Revenue: {slide_summaries.get('revenue')}
+2. YoY Growth: {slide_summaries.get('yoy')}
+3. Ticket Size: {slide_summaries.get('ticket')}
+4. Market Size: {slide_summaries.get('market')}
+
+Write a short, professional summary about the market's attractiveness, notable patterns, standout businesses, and whether this is a good location to open a new business.
+""".strip()
+
+    result = subprocess.run(
+        ["ollama", "run", LLM_MODEL],
+        input=prompt.encode("utf-8"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return result.stdout.decode("utf-8").strip()
+
 def export_project_pptx(project_id: str, supabase):
     print(f"🚀 Starting export for project ID: {project_id}")
+    from test_01_download_templates import download_all_templates
+    from generate_charts import generate_revenue_chart, generate_yoy_chart, generate_ticket_chart, generate_market_size_chart
+
     download_all_templates()
     summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
     if not summaries:
         print("❌ No data found for this project.")
-        return None
+        return
+
     project_output_dir = os.path.join(OUTPUT_DIR, project_id)
     os.makedirs(project_output_dir, exist_ok=True)
     def save_slide(title, chart_func, filename, summaries, summary_text):
@@ -149,63 +116,62 @@ def export_project_pptx(project_id: str, supabase):
             ppt = generate_chart_slide(title, image_path, summary_text)
             ppt.save(os.path.join(project_output_dir, filename))
             print(f"✅ Saved {title} to: {filename}")
+
     end_date = datetime.now().strftime("%B %Y")
-    # Slide 2: Revenue
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
+    slide_summaries = {}
+
     sorted_rev = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
     top_rev = ", ".join(f"{b['name']} (${b['annual_revenue']:,.0f})" for b in sorted_rev[:3])
     avg_rev = sum(b["annual_revenue"] for b in trusted) / len(trusted)
     med_rev = sorted(b["annual_revenue"] for b in trusted)[len(trusted) // 2]
     range_rev = max(b["annual_revenue"] for b in trusted) - min(b["annual_revenue"] for b in trusted)
     cluster_text = "tightly clustered" if range_rev < 0.2 * avg_rev else "widely spread"
-    summary_revenue = (
-        f"This chart shows the annual revenue over the past 12 months ending in {end_date}. "
-        f"The top businesses include {top_rev}. The mean revenue is ${avg_rev:,.0f} and the median is ${med_rev:,.0f}. "
-        f"The data is {cluster_text}, providing insight into competitive distribution."
-    )
+    summary_revenue = f"Top: {top_rev}. Mean: ${avg_rev:,.0f}, Median: ${med_rev:,.0f}. Distribution: {cluster_text}."
+    slide_summaries["revenue"] = summary_revenue
     save_slide(REVENUE_SLIDE_TITLE, generate_revenue_chart, "slide_2.pptx", summaries, summary_revenue)
-    # Slide 3: YoY
+
     sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"], reverse=True)
     top_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[:3])
     bottom_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[-3:])
     avg_yoy = sum(b["yoy_growth"] for b in sorted_yoy) / len(sorted_yoy)
     med_yoy = sorted(b["yoy_growth"] for b in sorted_yoy)[len(sorted_yoy) // 2]
-    summary_yoy = (
-        f"This chart shows YoY revenue growth ending in {end_date}. Top gainers include {top_yoy}. "
-        f"Largest declines: {bottom_yoy}. Average growth: {avg_yoy * 100:.1f}%, Median: {med_yoy * 100:.1f}%."
-    )
+    summary_yoy = f"Top growth: {top_yoy}. Declines: {bottom_yoy}. Avg: {avg_yoy*100:.1f}%, Median: {med_yoy*100:.1f}%."
+    slide_summaries["yoy"] = summary_yoy
     save_slide(YOY_SLIDE_TITLE, generate_yoy_chart, "slide_3.pptx", summaries, summary_yoy)
-    # Slide 4: Ticket Size
+
     sorted_ticket = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
     top_ticket = ", ".join(f"{b['name']} (${b['ticket_size']:,.0f})" for b in sorted_ticket[:3])
     avg_ticket = sum(b["ticket_size"] for b in sorted_ticket) / len(sorted_ticket)
     med_ticket = sorted(b["ticket_size"] for b in sorted_ticket)[len(sorted_ticket) // 2]
-    summary_ticket = (
-        f"This chart shows average ticket size across trusted businesses. Highest ticket sizes: {top_ticket}. "
-        f"Mean: ${avg_ticket:,.0f}, Median: ${med_ticket:,.0f}."
-    )
+    summary_ticket = f"Top prices: {top_ticket}. Mean: ${avg_ticket:,.0f}, Median: ${med_ticket:,.0f}."
+    slide_summaries["ticket"] = summary_ticket
     save_slide(TICKET_SLIDE_TITLE, generate_ticket_chart, "slide_4.pptx", summaries, summary_ticket)
-    # Slide 5: Market Size
+
     trusted_total = sum(b["annual_revenue"] for b in trusted)
     projected_total = trusted_total * 1.5
-    summary_market = (
-        f"This chart shows estimated market size based on verified data (${trusted_total:,.0f}) and a projected multiplier of 1.5. "
-        f"Projected market is ${projected_total:,.0f}."
-    )
+    summary_market = f"Verified revenue: ${trusted_total:,.0f}, Projected market: ${projected_total:,.0f} (1.5x)."
+    slide_summaries["market"] = summary_market
     save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_5.pptx", summaries, summary_market)
-    # Slide 1: Title
+
     title_path = os.path.join(project_output_dir, "slide_1_title.pptx")
     if not os.path.exists(title_path):
         title_prs = Presentation(TITLE_TEMPLATE)
         title_prs.save(title_path)
         print(f"✅ Saved title slide to: {title_path}")
-    print("✅ All slides generated and saved individually.")
+
+    summary_analysis = generate_llama_summary(slide_summaries)
+    summary_stats = {
+        "total": len(summaries),
+        "trusted": len(trusted),
+        "mean_revenue": avg_rev,
+        "median_revenue": med_rev,
+        "avg_ticket": avg_ticket,
+        "mean_yoy": avg_yoy * 100
+    }
+    summary_path = os.path.join(project_output_dir, "slide_6_summary.pptx")
+    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis)
+    print("✅ All slides including summary slide generated.")
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    from supabase import create_client, Client
-    load_dotenv()
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     export_project_pptx("5c36b37b-1530-43be-837a-8491d914dfc6", supabase)
