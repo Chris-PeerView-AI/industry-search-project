@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Added Map Exhibit and fixed zoom">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed map chart placement.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/slides_summary.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_summary.py" afterDir="false" />
@@ -205,14 +205,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00001" summary="Placeholder schafolding">
-      <option name="closed" value="true" />
-      <created>1753214265654</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1753214265654</updated>
     </task>
     <task id="LOCAL-00002" summary="Google Search MVP set up">
       <option name="closed" value="true" />
@@ -598,11 +590,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754062636128</updated>
     </task>
-    <option name="localTasksCounter" value="50" />
+    <task id="LOCAL-00050" summary="Fixed map chart placement.">
+      <option name="closed" value="true" />
+      <created>1754065531586</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1754065531587</updated>
+    </task>
+    <option name="localTasksCounter" value="51" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few" />
     <MESSAGE value="One big circle in Map Review" />
     <MESSAGE value="Enigma data is pulled and stored in Supabase" />
     <MESSAGE value="Test for Summary stats works" />
@@ -627,6 +626,7 @@
     <MESSAGE value="Updated market size chart to represent the upper and lower bound properly." />
     <MESSAGE value="Updated City and Industry Info" />
     <MESSAGE value="Added Map Exhibit and fixed zoom" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added Map Exhibit and fixed zoom" />
+    <MESSAGE value="Fixed map chart placement." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed map chart placement." />
   </component>
 </project>

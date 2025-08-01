@@ -48,7 +48,7 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
             p = shape.text_frame.paragraphs[0]
             run = p.add_run()
             run.text = summary_analysis.strip()
-            run.font.size = Pt(8)
+            run.font.size = Pt(7)
         else:
             shape.text_frame.text = text
 
@@ -75,6 +75,7 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
         )
 
     ppt.save(output_path)
+    print(f"✅ Saved summary slide to: {output_path}")
 
 def generate_llama_summary(slide_summaries: dict, model_name: str = "llama3") -> str:
     sentiment = "neutral"
@@ -95,7 +96,7 @@ You are a market research consultant. Based on the following summaries:
 3. Ticket Size: {slide_summaries.get('ticket')}
 4. Market Size: {slide_summaries.get('market')}
 
-Write a professional, approximately 750-word summary about the market's attractiveness, notable patterns, standout businesses, and whether this is a good location to open a new business.
+Write a professional, approximately 700-word summary about the market's attractiveness, notable patterns, standout businesses, and whether this is a good location to open a new business.
 The tone should be {sentiment}. If growth is above 10%, highlight strong momentum. If it's below 0%, note concerning trends. If in-between, maintain a balanced tone.
 """.strip()
 
@@ -114,6 +115,59 @@ def get_market_size_analysis():
         "to those with data, which likely overstates true market size. Poor data quality is often associated with smaller "
         "businesses or those facing operational challenges."
     )
+
+def generate_appendix_slide(output_path, business: dict, template_path="modules/downloaded_summary_template.pptx"):
+    print(f"🧩 Generating appendix slide for: {business.get('name')} (enigma_id: {business.get('enigma_id')})")
+
+    required_fields = ["annual_revenue", "ticket_size", "yoy_growth"]
+    for field in required_fields:
+        if business.get(field) is None:
+            print(f"⚠️  Missing field {field} for business {business.get('name')}, skipping.")
+            return
+    from pptx import Presentation
+    from pptx.util import Inches, Pt
+
+    ppt = Presentation(template_path)
+    slide = ppt.slides[0]
+
+    name = business.get("name", "Business")
+    city = business.get("city", "")
+    state = business.get("state", "")
+    revenue = business.get("annual_revenue")
+    yoy = business.get("yoy_growth")
+    ticket = business.get("ticket_size")
+    tier_reason = business.get("tier_reason", "")
+
+    # Add content
+    for shape in slide.shapes:
+        if not shape.has_text_frame:
+            continue
+
+        text = shape.text_frame.text
+        if "{TBD TITLE}" in text:
+            shape.text_frame.clear()
+            p = shape.text_frame.paragraphs[0]
+            run = p.add_run()
+            run.text = f"{name} ({city}, {state})"
+            run.font.size = Pt(26)
+            run.font.bold = True
+            continue
+
+        if "{TBD SUMMARY ANALYSIS}" in text:
+            summary_text = f"This business had estimated revenue of ${revenue:,.0f}, with an average ticket size of ${ticket:,.0f} and year-over-year growth of {yoy*100:.1f}%."
+            if tier_reason:
+                summary_text += f" Reason for inclusion: {tier_reason.strip()}"
+            shape.text_frame.clear()
+            p = shape.text_frame.paragraphs[0]
+            run = p.add_run()
+            run.text = summary_text
+            run.font.size = Pt(7)
+        else:
+            for key in ["{TBD AS OF DATE}", "{TBD TOTAL BUSINESSES}", "{TBD TRUSTED BUSINESSES}", "{TBD: MEAN REVENUE}"]:
+                text = text.replace(key, "")
+            shape.text_frame.text = text
+
+    ppt.save(output_path)
 
 def get_latest_period_end(supabase: object, project_id: str) -> str:
     resp = (

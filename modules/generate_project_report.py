@@ -35,6 +35,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 def export_project_pptx(project_id: str, supabase):
     print(f"🚀 Starting export for project ID: {project_id}")
     from test_01_download_templates import download_all_templates
@@ -86,17 +87,18 @@ def export_project_pptx(project_id: str, supabase):
     cluster_text = "tightly clustered" if range_rev < 0.2 * avg_rev else "widely spread"
     summary_revenue = f"Top: {top_rev}. Mean: ${avg_rev:,.0f}, Median: ${med_rev:,.0f}. Distribution: {cluster_text}."
     slide_summaries["revenue"] = summary_revenue
-    save_slide(REVENUE_SLIDE_TITLE, generate_revenue_chart, "slide_2.pptx", summaries, summary_revenue)
+    save_slide(REVENUE_SLIDE_TITLE, generate_revenue_chart, "slide_21_revenue.pptx", summaries, summary_revenue)
 
     # YoY Growth
-    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"], reverse=True)
+    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"],
+                        reverse=True)
     top_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[:3])
     bottom_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[-3:])
     avg_yoy = sum(b["yoy_growth"] for b in sorted_yoy) / len(sorted_yoy)
     med_yoy = sorted(b["yoy_growth"] for b in sorted_yoy)[len(sorted_yoy) // 2]
-    summary_yoy = f"Top growth: {top_yoy}. Declines: {bottom_yoy}. Avg: {avg_yoy*100:.1f}%, Median: {med_yoy*100:.1f}%."
+    summary_yoy = f"Top growth: {top_yoy}. Declines: {bottom_yoy}. Avg: {avg_yoy * 100:.1f}%, Median: {med_yoy * 100:.1f}%."
     slide_summaries["yoy"] = summary_yoy
-    save_slide(YOY_SLIDE_TITLE, generate_yoy_chart, "slide_3.pptx", summaries, summary_yoy)
+    save_slide(YOY_SLIDE_TITLE, generate_yoy_chart, "slide_22_yoy_growth.pptx", summaries, summary_yoy)
 
     # Ticket Size
     sorted_ticket = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
@@ -105,7 +107,7 @@ def export_project_pptx(project_id: str, supabase):
     med_ticket = sorted(b["ticket_size"] for b in sorted_ticket)[len(sorted_ticket) // 2]
     summary_ticket = f"Top prices: {top_ticket}. Mean: ${avg_ticket:,.0f}, Median: ${med_ticket:,.0f}."
     slide_summaries["ticket"] = summary_ticket
-    save_slide(TICKET_SLIDE_TITLE, generate_ticket_chart, "slide_4.pptx", summaries, summary_ticket)
+    save_slide(TICKET_SLIDE_TITLE, generate_ticket_chart, "slide_23_ticket_size.pptx", summaries, summary_ticket)
 
     # Market Size
     trusted_total = sum(b["annual_revenue"] for b in trusted)
@@ -113,18 +115,19 @@ def export_project_pptx(project_id: str, supabase):
     from slides_summary import get_market_size_analysis
     summary_market = get_market_size_analysis()
     slide_summaries["market"] = summary_market
-    save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_5.pptx", summaries, summary_market)
+    save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_24_market_size.pptx", summaries, summary_market)
 
     # Map
     summary_map = f"Map of benchmark businesses around {city}, including trusted (green) and untrusted (gray) businesses."
     slide_summaries["map"] = summary_map
-    save_slide(MAP_SLIDE_TITLE, generate_map_chart, "slide_6_map.pptx", summaries, summary_map)
+    save_slide(MAP_SLIDE_TITLE, generate_map_chart, "slide_25_map.pptx", summaries, summary_map)
 
     # Title Slide
     generate_title_slide_if_needed(project_output_dir, TITLE_TEMPLATE)
 
     # Summary Slide
     summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
+    summary_analysis = summary_analysis.replace("Pet Industry in [Location]", f"{industry} in {city}")
     summary_stats = {
         "total": len(summaries),
         "trusted": len(trusted),
@@ -133,13 +136,39 @@ def export_project_pptx(project_id: str, supabase):
         "avg_ticket": avg_ticket,
         "mean_yoy": avg_yoy * 100
     }
-    summary_path = os.path.join(project_output_dir, "slide_7_summary.pptx")
-    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, industry, city, map_image_path=os.path.join(project_output_dir, "slide_6_map.png"))
+    summary_path = os.path.join(project_output_dir, "slide_11_market_summary.pptx")
+    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, industry, city,
+                           map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
     print("✅ All slides including summary slide generated.")
+
+    # Appendix Slides
+    print("📎 Starting appendix slide generation...")
+    appendix_dir = os.path.join(project_output_dir)
+    trusted_ids = [b["id"] for b in trusted]
+    summaries_by_id = {b["id"]: b for b in summaries}
+    search_ids = [b["search_result_id"] for b in trusted if b.get("search_result_id")]
+    print(f"🔍 Trusted businesses with search_results_id: {len(search_ids)}")
+    search_rows = supabase.table("search_results").select("id, tier_reason").in_("id", search_ids).execute().data
+    tier_lookup = {r["id"]: r["tier_reason"] for r in search_rows}
+    print(f"📝 Retrieved {len(tier_lookup)} tier_reason entries")
+
+    from slides_summary import generate_appendix_slide
+    appendix_count = 0
+    for i, biz in enumerate(trusted):
+        sid = biz.get("search_result_id")
+        if not sid or sid not in tier_lookup:
+            continue
+        biz["tier_reason"] = tier_lookup[sid]
+        appendix_path = os.path.join(appendix_dir, f"slide_41_{i + 1}_IndividualBusiness.pptx")
+        generate_appendix_slide(appendix_path, biz)
+        appendix_count += 1
+
+    print(f"✅ Total appendix slides generated: {appendix_count}")
 
     # Convert and Merge PDF
     pdf_path = convert_and_merge_slides(project_output_dir, industry, city)
     print(f"💎 Final PDF report saved to {pdf_path}")
+
 
 if __name__ == "__main__":
     export_project_pptx("5c36b37b-1530-43be-837a-8491d914dfc6", supabase)
