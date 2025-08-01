@@ -13,6 +13,7 @@ from slides_exhibit import (
     generate_market_size_chart,
 )
 from slides_summary import generate_summary_slide, generate_llama_summary
+from convert_slides_to_pdf import convert_and_merge_slides
 
 # Constants
 REVENUE_SLIDE_TITLE = "Exhibit 1: Annual Revenue"
@@ -55,6 +56,9 @@ def export_project_pptx(project_id: str, supabase):
     end_date = datetime.now().strftime("%B %Y")
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     slide_summaries = {}
+
+    industry = summaries[0].get("industry", "Industry")
+    city = summaries[0].get("city", "City")
 
     # Revenue
     sorted_rev = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
@@ -109,6 +113,10 @@ def export_project_pptx(project_id: str, supabase):
     summary_path = os.path.join(project_output_dir, "slide_6_summary.pptx")
     generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis)
     print("✅ All slides including summary slide generated.")
+
+    # Convert and Merge PDF
+    pdf_path = convert_and_merge_slides(project_output_dir, industry, city)
+    print(f"📎 Final PDF report saved to {pdf_path}")
 
 if __name__ == "__main__":
     export_project_pptx("5c36b37b-1530-43be-837a-8491d914dfc6", supabase)

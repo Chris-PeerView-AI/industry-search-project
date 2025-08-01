@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Basic set of charts and summary produced. Still need refinement.">
-      <change afterPath="$PROJECT_DIR$/modules/slides_admin.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/modules/slides_exhibit.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Made the report creation code more modular.">
+      <change afterPath="$PROJECT_DIR$/modules/convert_slides_to_pdf.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -518,11 +518,18 @@
       <option name="project" value="LOCAL" />
       <updated>1753997211242</updated>
     </task>
-    <option name="localTasksCounter" value="40" />
+    <task id="LOCAL-00040" summary="Made the report creation code more modular.">
+      <option name="closed" value="true" />
+      <created>1754052945308</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1754052945308</updated>
+    </task>
+    <option name="localTasksCounter" value="41" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Kept Project Details in review mode" />
     <MESSAGE value="Expanded Review details" />
     <MESSAGE value="Adjusted Map Display details" />
     <MESSAGE value="Adjusted manual review to simplify" />
@@ -547,6 +554,7 @@
     <MESSAGE value="Growth Rate, Ticket Size and Market Size charts are drafted." />
     <MESSAGE value="REmoving OpenAI from Generate Project Report" />
     <MESSAGE value="Basic set of charts and summary produced. Still need refinement." />
-    <option name="LAST_COMMIT_MESSAGE" value="Basic set of charts and summary produced. Still need refinement." />
+    <MESSAGE value="Made the report creation code more modular." />
+    <option name="LAST_COMMIT_MESSAGE" value="Made the report creation code more modular." />
   </component>
 </project>
