@@ -4,7 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Added interim admin slides. Need ot fix formatting">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed placement on exhibit intro slide">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -203,22 +204,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00004" summary="Spiral search pattern for google places search">
-      <option name="closed" value="true" />
-      <created>1753289639331</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1753289639331</updated>
-    </task>
-    <task id="LOCAL-00005" summary="Progress Status while running">
-      <option name="closed" value="true" />
-      <created>1753292621514</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1753292621514</updated>
     </task>
     <task id="LOCAL-00006" summary="Refining Classification and adding Open AI capabilities">
       <option name="closed" value="true" />
@@ -596,12 +581,26 @@
       <option name="project" value="LOCAL" />
       <updated>1754072770149</updated>
     </task>
-    <option name="localTasksCounter" value="53" />
+    <task id="LOCAL-00053" summary="Fixed formatting on admin slides. Need to fix placement of exhibit intro slide">
+      <option name="closed" value="true" />
+      <created>1754073389269</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1754073389269</updated>
+    </task>
+    <task id="LOCAL-00054" summary="Fixed placement on exhibit intro slide">
+      <option name="closed" value="true" />
+      <created>1754073404768</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1754073404768</updated>
+    </task>
+    <option name="localTasksCounter" value="55" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Test for Summary stats works" />
-    <MESSAGE value="Updated UI Benchmarking Map" />
     <MESSAGE value="Interim step with adding PDF export" />
     <MESSAGE value="First draft of Report PDF Output" />
     <MESSAGE value="Fixed Ticket Price past year value" />
@@ -625,6 +624,8 @@
     <MESSAGE value="Fixed map chart placement." />
     <MESSAGE value="Individual Business slides created (but not populated right yet)." />
     <MESSAGE value="Added interim admin slides. Need ot fix formatting" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added interim admin slides. Need ot fix formatting" />
+    <MESSAGE value="Fixed formatting on admin slides. Need to fix placement of exhibit intro slide" />
+    <MESSAGE value="Fixed placement on exhibit intro slide" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed placement on exhibit intro slide" />
   </component>
 </project>

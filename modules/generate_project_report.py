@@ -79,7 +79,24 @@ def export_project_pptx(project_id: str, supabase):
     os.makedirs(project_output_dir, exist_ok=True)
 
     # Title Slide
-    generate_title_slide_if_needed(project_output_dir, TITLE_TEMPLATE)
+    from pptx import Presentation
+    now_str = datetime.now().strftime("%B %Y")
+    title_path = os.path.join(project_output_dir, "slide_1_title.pptx")
+    ppt = Presentation(TITLE_TEMPLATE)
+    slide = ppt.slides[0]
+    for shape in slide.shapes:
+        if not shape.has_text_frame:
+            continue
+        text = shape.text_frame.text
+        text = text.replace("{TBD INDUSTRY}", industry)
+        text = text.replace("{TBD LOCATION}", city)
+        text = text.replace("{TBD DATE}", now_str)
+        from pptx.enum.text import PP_ALIGN
+        shape.text_frame.text = text
+        for paragraph in shape.text_frame.paragraphs:
+            paragraph.alignment = PP_ALIGN.CENTER
+    ppt.save(title_path)
+    print(f"✅ Saved title slide to: {title_path}")
 
     # Intro Slides (Slide 10+)
     copy_template_slides(INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_10_intro"), 0)
