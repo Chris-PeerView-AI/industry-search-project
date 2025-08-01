@@ -44,9 +44,11 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
 
         if "{TBD SUMMARY ANALYSIS}" in text:
             shape.text_frame.clear()
-            truncated_lines = summary_analysis.strip().split("\n")[:10]
-            truncated_text = "\n".join(truncated_lines)
-            shape.text_frame.paragraphs[0].add_run().text = truncated_text
+            truncated_text = " ".join(summary_analysis.strip().split())[:2500]  # ~400 words
+            p = shape.text_frame.paragraphs[0]
+            run = p.add_run()
+            run.text = truncated_text
+            run.font.size = Pt(8)
         else:
             shape.text_frame.text = text
 

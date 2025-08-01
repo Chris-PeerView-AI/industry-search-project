@@ -109,7 +109,7 @@ def generate_market_size_chart(path, summaries):
     trusted_total = sum(b["annual_revenue"] for b in trusted)
     projected_total = trusted_total * 1.5
     fig, ax = plt.subplots(figsize=(6, 4))
-    bars = ax.bar(["Verified", "Projected"], [trusted_total / 1_000_000, projected_total / 1_000_000],
+    bars = ax.bar(["Lower Bound", "Upper Bound"], [trusted_total / 1_000_000, projected_total / 1_000_000],
                   color=["#4CAF50", "#C0C0C0"], edgecolor="black")
     bars[1].set_hatch("//")
     ax.set_title("Estimated Market Size")
