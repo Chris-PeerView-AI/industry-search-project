@@ -40,6 +40,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+
 def copy_template_slides(template_path, output_path_prefix, start_slide_num):
     import shutil
     output_path = f"{output_path_prefix}_{start_slide_num}.pptx"
@@ -105,20 +106,7 @@ def export_project_pptx(project_id: str, supabase):
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     slide_summaries = {}
 
-    # Summary Slide (Slide 11)
-    summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
-    summary_analysis = summary_analysis.replace("Pet Industry in [Location]", f"{industry} in {city}")
-    summary_stats = {
-        "total": len(summaries),
-        "trusted": len(trusted),
-        "mean_revenue": 0,
-        "median_revenue": 0,
-        "avg_ticket": 0,
-        "mean_yoy": 0
-    }
-    summary_path = os.path.join(project_output_dir, "slide_11_market_summary.pptx")
-    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry,
-                           map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
+    # Exhibit Intro (Slide 20)
 
     # Exhibit Intro (Slide 20)
     copy_template_slides(EXHIBIT_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_20_exhibit_intro"), 0)
@@ -142,7 +130,8 @@ def export_project_pptx(project_id: str, supabase):
     save_slide(REVENUE_SLIDE_TITLE, generate_revenue_chart, "slide_21_revenue.pptx", summaries, summary_revenue)
 
     # YoY Growth
-    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"], reverse=True)
+    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"],
+                        reverse=True)
     top_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[:3])
     bottom_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[-3:])
     avg_yoy = sum(b["yoy_growth"] for b in sorted_yoy) / len(sorted_yoy)
@@ -172,6 +161,23 @@ def export_project_pptx(project_id: str, supabase):
     summary_map = f"Map of benchmark businesses around {city}, including trusted (green) and untrusted (gray) businesses."
     slide_summaries["map"] = summary_map
     save_slide(MAP_SLIDE_TITLE, generate_map_chart, "slide_25_map.pptx", summaries, summary_map)
+
+    # Summary statistics (must follow calculated values)
+    summary_stats = {
+        "total": len(summaries),
+        "trusted": len(trusted),
+        "mean_revenue": avg_rev,
+        "median_revenue": med_rev,
+        "avg_ticket": avg_ticket,
+        "mean_yoy": avg_yoy * 100
+    }
+
+    # ✅ Now generate summary slide after all exhibit summaries are complete
+    summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
+    summary_analysis = summary_analysis.replace("Pet Industry in [Location]", f"{industry} in {city}")
+    summary_path = os.path.join(project_output_dir, "slide_11_market_summary.pptx")
+    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry,
+                           map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
 
     # Appendix Intro
     copy_template_slides(APPENDIX_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_40_appendix_intro"), 0)
