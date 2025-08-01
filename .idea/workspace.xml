@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed Industry Summary Slide.">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Added Individual Business Slides with most of the data and formatting right.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/slides_summary.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_summary.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/test_01_download_templates.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/test_01_download_templates.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -206,14 +204,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00008" summary="Added Lat and Long to business records">
-      <option name="closed" value="true" />
-      <created>1753298729430</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1753298729430</updated>
     </task>
     <task id="LOCAL-00009" summary="Added a map view">
       <option name="closed" value="true" />
@@ -599,11 +589,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754074686620</updated>
     </task>
-    <option name="localTasksCounter" value="57" />
+    <task id="LOCAL-00057" summary="Added Individual Business Slides with most of the data and formatting right.">
+      <option name="closed" value="true" />
+      <created>1754075563520</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1754075563520</updated>
+    </task>
+    <option name="localTasksCounter" value="58" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Fixed Ticket Price past year value" />
     <MESSAGE value="Adjusted automated PDF output. Moving onto Powerpoint template output" />
     <MESSAGE value="Created three test files to create powerpoint outputs" />
     <MESSAGE value="Working on the generate report code. Got the templates downlaoded the title page added to a new presentation" />
@@ -628,6 +625,7 @@
     <MESSAGE value="Fixed placement on exhibit intro slide" />
     <MESSAGE value="Fixed Title Slide to use dynamic information" />
     <MESSAGE value="Fixed Industry Summary Slide." />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixed Industry Summary Slide." />
+    <MESSAGE value="Added Individual Business Slides with most of the data and formatting right." />
+    <option name="LAST_COMMIT_MESSAGE" value="Added Individual Business Slides with most of the data and formatting right." />
   </component>
 </project>

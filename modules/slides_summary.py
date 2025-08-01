@@ -120,7 +120,6 @@ def get_market_size_analysis():
         "businesses or those facing operational challenges."
     )
 
-
 def generate_individual_business_slide(output_path, business: dict, end_date: str, industry: str, city: str):
     print(f"🧩 Generating business slide for: {business.get('name')}")
 
@@ -130,7 +129,7 @@ def generate_individual_business_slide(output_path, business: dict, end_date: st
     replacements = {
         "{TBD TITLE}": business.get("name", "Business"),
         "{TBD AS OF DATE}": end_date,
-        "{TBD ADDRESS}": f"{business.get('address', '')}, {business.get('city', '')}, {business.get('state', '')}",
+        "{TBD ADDRESS}": f"{business.get('address', '')}",
         "{TBD: MEAN REVENUE}": f"${business.get('annual_revenue', 0):,.0f}",
         "{TBD YOY GROWTH}": f"{business.get('yoy_growth', 0)*100:.1f}%",
         "{TBD AVERAGE TICKET SIZE}": f"${business.get('ticket_size', 0):,.0f}",
@@ -148,9 +147,25 @@ def generate_individual_business_slide(output_path, business: dict, end_date: st
             continue
 
         text = shape.text_frame.text
+        handled = False
+
         for key, val in replacements.items():
-            if key in text:
+            if key == "{TBD TITLE}" and key in text:
+                shape.text_frame.clear()
+                p = shape.text_frame.paragraphs[0]
+                run = p.add_run()
+                run.text = val
+                run.font.name = "Montserrat"
+                run.font.size = Pt(30)
+                run.font.bold = True
+                p.alignment = PP_ALIGN.CENTER
+                handled = True
+                break
+            elif key in text:
                 text = text.replace(key, val)
+
+        if handled:
+            continue
 
         if "{TBD SUMMARY ANALYSIS}" in text:
             shape.text_frame.clear()
@@ -158,10 +173,11 @@ def generate_individual_business_slide(output_path, business: dict, end_date: st
             run = p.add_run()
             run.text = summary_text
             run.font.size = Pt(7)
-        else:
-            shape.text_frame.text = text
-            for p in shape.text_frame.paragraphs:
-                p.alignment = PP_ALIGN.LEFT
+            continue
+
+        shape.text_frame.text = text
+        for p in shape.text_frame.paragraphs:
+            p.alignment = PP_ALIGN.LEFT
 
     # Draw map pin overlay if lat/lon is available
     if business.get("latitude") and business.get("longitude"):
@@ -179,7 +195,6 @@ def generate_individual_business_slide(output_path, business: dict, end_date: st
 
     ppt.save(output_path)
     print(f"✅ Saved individual business slide: {output_path}")
-
 
 def get_latest_period_end(supabase: object, project_id: str) -> str:
     resp = (
