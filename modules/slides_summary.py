@@ -1,5 +1,7 @@
 # slides_summary.py
 
+import os
+
 import subprocess
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -7,8 +9,7 @@ from datetime import datetime
 
 SUMMARY_TEMPLATE = "modules/downloaded_summary_template.pptx"
 
-
-def generate_summary_slide(output_path, trusted, end_date, summary_stats, summary_analysis, city="", industry=""):
+def generate_summary_slide(output_path, trusted, end_date, summary_stats, summary_analysis, city="", industry="", map_image_path=None):
     ppt = Presentation(SUMMARY_TEMPLATE)
     slide = ppt.slides[0]
     for shape in slide.shapes:
@@ -51,8 +52,29 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
         else:
             shape.text_frame.text = text
 
-    ppt.save(output_path)
+    # Add map image if provided
+    if map_image_path and os.path.exists(map_image_path):
+        from PIL import Image
+        img = Image.open(map_image_path)
+        img_width, img_height = img.size
+        max_width_inches = 4.0
+        max_height_inches = 3.5
+        width_ratio = max_width_inches * 96 / img_width
+        height_ratio = max_height_inches * 96 / img_height
+        scale = min(width_ratio, height_ratio)
+        final_width = Inches(img_width * scale / 96)
+        final_height = Inches(img_height * scale / 96)
+        left = Inches(4.0)
+        top = Inches(2.25)
+        slide.shapes.add_picture(
+            map_image_path,
+            left=left,
+            top=top,
+            width=final_width,
+            height=final_height
+        )
 
+    ppt.save(output_path)
 
 def generate_llama_summary(slide_summaries: dict, model_name: str = "llama3") -> str:
     sentiment = "neutral"
@@ -85,7 +107,6 @@ The tone should be {sentiment}. If growth is above 10%, highlight strong momentu
     )
     return result.stdout.decode("utf-8").strip()
 
-
 def get_market_size_analysis():
     return (
         "This chart compares the total verified revenue from businesses with high-quality data to an estimate "
@@ -93,7 +114,6 @@ def get_market_size_analysis():
         "to those with data, which likely overstates true market size. Poor data quality is often associated with smaller "
         "businesses or those facing operational challenges."
     )
-
 
 def get_latest_period_end(supabase: object, project_id: str) -> str:
     resp = (

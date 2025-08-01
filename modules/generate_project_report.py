@@ -134,7 +134,7 @@ def export_project_pptx(project_id: str, supabase):
         "mean_yoy": avg_yoy * 100
     }
     summary_path = os.path.join(project_output_dir, "slide_7_summary.pptx")
-    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, industry, city)
+    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, industry, city, map_image_path=os.path.join(project_output_dir, "slide_6_map.png"))
     print("✅ All slides including summary slide generated.")
 
     # Convert and Merge PDF
