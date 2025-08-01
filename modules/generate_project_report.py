@@ -11,6 +11,7 @@ from slides_exhibit import (
     generate_yoy_chart,
     generate_ticket_chart,
     generate_market_size_chart,
+    generate_map_chart
 )
 from slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end
 from convert_slides_to_pdf import convert_and_merge_slides
@@ -20,7 +21,8 @@ REVENUE_SLIDE_TITLE = "Exhibit 1: Annual Revenue"
 YOY_SLIDE_TITLE = "Exhibit 2: YoY Growth"
 TICKET_SLIDE_TITLE = "Exhibit 3: Average Ticket Size"
 MARKET_SLIDE_TITLE = "Exhibit 4: Market Size"
-SUMMARY_SLIDE_TITLE = "Exhibit 5: Market Overview"
+MAP_SLIDE_TITLE = "Exhibit 5: Benchmark Map"
+SUMMARY_SLIDE_TITLE = "Exhibit 6: Market Overview"
 TITLE_TEMPLATE = "modules/downloaded_title_template.pptx"
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 
@@ -113,6 +115,11 @@ def export_project_pptx(project_id: str, supabase):
     slide_summaries["market"] = summary_market
     save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_5.pptx", summaries, summary_market)
 
+    # Map
+    summary_map = f"Map of benchmark businesses around {city}, including trusted (green) and untrusted (gray) businesses."
+    slide_summaries["map"] = summary_map
+    save_slide(MAP_SLIDE_TITLE, generate_map_chart, "slide_6_map.pptx", summaries, summary_map)
+
     # Title Slide
     generate_title_slide_if_needed(project_output_dir, TITLE_TEMPLATE)
 
@@ -126,7 +133,7 @@ def export_project_pptx(project_id: str, supabase):
         "avg_ticket": avg_ticket,
         "mean_yoy": avg_yoy * 100
     }
-    summary_path = os.path.join(project_output_dir, "slide_6_summary.pptx")
+    summary_path = os.path.join(project_output_dir, "slide_7_summary.pptx")
     generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, industry, city)
     print("✅ All slides including summary slide generated.")
 

@@ -127,3 +127,62 @@ def get_market_size_analysis():
         "to those with data, which likely overstates true market size. Poor data quality is often associated with smaller "
         "businesses or those facing operational challenges."
     )
+
+def generate_map_chart(output_path, summaries):
+    import folium
+    import pandas as pd
+    from geopy.distance import geodesic
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    import time
+    import os
+
+    df = pd.DataFrame(summaries)
+    df = df[df["latitude"].notnull() & df["longitude"].notnull()]
+    if df.empty:
+        return False
+
+    # Use the geographic center as the default map center
+    center_lat = df["latitude"].mean()
+    center_lng = df["longitude"].mean()
+    m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
+
+    # Compute farthest point for radius
+    farthest_km = max(
+        geodesic((center_lat, center_lng), (lat, lng)).km
+        for lat, lng in zip(df["latitude"], df["longitude"])
+    )
+
+    folium.Circle(
+        location=[center_lat, center_lng],
+        radius=farthest_km * 1000,
+        color="blue",
+        fill=True,
+        fill_opacity=0.05,
+        weight=0.7,
+        popup=f"Search Radius: {farthest_km:.2f} km"
+    ).add_to(m)
+
+    for _, biz in df.iterrows():
+        color = "gray" if biz.get("benchmark") != "trusted" else "green"
+        folium.Marker(
+            location=[biz["latitude"], biz["longitude"]],
+            popup=biz.get("name", ""),
+            icon=folium.Icon(color=color)
+        ).add_to(m)
+
+    # Save map to HTML and convert to PNG via headless Chrome
+    tmp_html = output_path.replace(".png", ".html")
+    m.save(tmp_html)
+
+    options = Options()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(options=options)
+    driver.set_window_size(900, 700)
+    driver.get("file://" + os.path.abspath(tmp_html))
+    time.sleep(2)
+    driver.save_screenshot(output_path)
+    driver.quit()
+    return True
