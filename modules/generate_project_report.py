@@ -103,8 +103,8 @@ def export_project_pptx(project_id: str, supabase):
     generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry,
                            map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
 
-    # Exhibit Intro (Slide 26)
-    copy_template_slides(EXHIBIT_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_26_exhibit_intro"), 0)
+    # Exhibit Intro (Slide 20)
+    copy_template_slides(EXHIBIT_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_20_exhibit_intro"), 0)
 
     def save_slide(title, chart_func, filename, summaries, summary_text):
         image_path = os.path.join(project_output_dir, filename.replace(".pptx", ".png"))
