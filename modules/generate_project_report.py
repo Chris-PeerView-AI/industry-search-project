@@ -5,8 +5,8 @@ import shutil
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from slides_admin import generate_title_slide_if_needed
-from slides_exhibit import (
+from modules.slides_admin import generate_title_slide_if_needed
+from modules.slides_exhibit import (
     generate_chart_slide,
     generate_revenue_chart,
     generate_yoy_chart,
@@ -14,8 +14,8 @@ from slides_exhibit import (
     generate_market_size_chart,
     generate_map_chart
 )
-from slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end
-from convert_slides_to_pdf import convert_and_merge_slides
+from modules.slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end
+from modules.convert_slides_to_pdf import convert_and_merge_slides
 from pptx import Presentation
 
 # Constants
@@ -55,7 +55,7 @@ def export_project_pptx(project_id: str, supabase):
         shutil.rmtree(project_output_dir)
     os.makedirs(project_output_dir, exist_ok=True)
 
-    from test_01_download_templates import download_all_templates
+    from modules.download_templates import download_all_templates
     download_all_templates()
 
     summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
@@ -150,7 +150,7 @@ def export_project_pptx(project_id: str, supabase):
     # Market Size
     trusted_total = sum(b["annual_revenue"] for b in trusted)
     projected_total = trusted_total * 1.5
-    from slides_summary import get_market_size_analysis
+    from modules.slides_summary import get_market_size_analysis
     summary_market = get_market_size_analysis()
     slide_summaries["market"] = summary_market
     save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_24_market_size.pptx", summaries, summary_market)
@@ -190,7 +190,7 @@ def export_project_pptx(project_id: str, supabase):
     tier_lookup = {r["id"]: r["tier_reason"] for r in search_rows}
     print(f"📝 Retrieved {len(tier_lookup)} tier_reason entries")
 
-    from slides_summary import generate_individual_business_slide
+    from modules.slides_summary import generate_individual_business_slide
 
     appendix_count = 0
     for i, biz in enumerate(trusted):

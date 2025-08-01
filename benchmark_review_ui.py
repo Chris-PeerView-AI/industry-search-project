@@ -5,6 +5,9 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 from modules.business_metrics import generate_enigma_summaries, summarize_benchmark_stats
 from modules.pdf_export import export_project_pdf
+from modules.pdf_only_export import generate_final_pdf
+from modules.generate_project_report import export_project_pptx
+from modules.pdf_only_export import generate_final_pdf, get_project_meta
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -39,9 +42,18 @@ if project_id:
             summarize_benchmark_stats(project_id)
             st.success("Benchmark summary updated.")
         if col3.button("📤 Export PDF Report"):
-            export_project_pdf(project_id, supabase)
+            pdf_path = export_project_pptx(project_id, supabase)
+            st.session_state["pdf_path"] = pdf_path
+            st.session_state["pdf_ready"] = True
+
+        if st.button("📄 Stitch Slides to Final PDF"):
+            meta = get_project_meta(project_id, supabase)
+            pdf_path = generate_final_pdf(project_id, meta['industry'], meta['location'])
+            st.session_state["pdf_path"] = pdf_path
+            st.session_state["pdf_ready"] = True
 
         if st.session_state.get("pdf_ready") and st.session_state.get("pdf_path"):
+            st.success("Report is ready for download.")
             with open(st.session_state["pdf_path"], "rb") as f:
                 st.download_button(
                     label="📥 Download PDF Report",

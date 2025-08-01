@@ -4,9 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed Business Slides with names">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Deleted TEST Files">
+      <change afterPath="$PROJECT_DIR$/modules/pdf_only_export.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/test_01_download_templates.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/download_templates.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -92,6 +95,28 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="download_templates" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/download_templates.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="generate_project_report" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
@@ -106,28 +131,6 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/generate_project_report.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="test_01_download_templates" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="industry_search_project" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/test_01_download_templates.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -204,30 +207,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00010" summary="Updated map view circle radius">
-      <option name="closed" value="true" />
-      <created>1753300017547</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1753300017547</updated>
-    </task>
-    <task id="LOCAL-00011" summary="Put in ability to load prior projects">
-      <option name="closed" value="true" />
-      <created>1753302856362</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1753302856362</updated>
-    </task>
-    <task id="LOCAL-00012" summary="Kept Project Details in review mode">
-      <option name="closed" value="true" />
-      <created>1753302965223</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1753302965223</updated>
     </task>
     <task id="LOCAL-00013" summary="Expanded Review details">
       <option name="closed" value="true" />
@@ -597,13 +576,34 @@
       <option name="project" value="LOCAL" />
       <updated>1754077888882</updated>
     </task>
-    <option name="localTasksCounter" value="59" />
+    <task id="LOCAL-00059" summary="Empties output folder before starting">
+      <option name="closed" value="true" />
+      <created>1754079335759</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1754079335759</updated>
+    </task>
+    <task id="LOCAL-00060" summary="Deleted OLD Files">
+      <option name="closed" value="true" />
+      <created>1754079357453</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1754079357453</updated>
+    </task>
+    <task id="LOCAL-00061" summary="Deleted TEST Files">
+      <option name="closed" value="true" />
+      <created>1754079397674</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1754079397674</updated>
+    </task>
+    <option name="localTasksCounter" value="62" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Created three test files to create powerpoint outputs" />
-    <MESSAGE value="Working on the generate report code. Got the templates downlaoded the title page added to a new presentation" />
-    <MESSAGE value="Each page is produced individaully and saved to a project folder. Only have the first title slide and revenue exhibit ready so far." />
     <MESSAGE value="Fixed title on exhibit" />
     <MESSAGE value="Growth Rate, Ticket Size and Market Size charts are drafted." />
     <MESSAGE value="REmoving OpenAI from Generate Project Report" />
@@ -626,6 +626,9 @@
     <MESSAGE value="Fixed Industry Summary Slide." />
     <MESSAGE value="Added Individual Business Slides with most of the data and formatting right." />
     <MESSAGE value="Fixed Business Slides with names" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixed Business Slides with names" />
+    <MESSAGE value="Empties output folder before starting" />
+    <MESSAGE value="Deleted OLD Files" />
+    <MESSAGE value="Deleted TEST Files" />
+    <option name="LAST_COMMIT_MESSAGE" value="Deleted TEST Files" />
   </component>
 </project>
