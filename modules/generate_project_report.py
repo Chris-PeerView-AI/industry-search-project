@@ -1,12 +1,18 @@
+# generate_project_report.py (main entrypoint)
+
 import os
-import subprocess
 from datetime import datetime
-from pptx import Presentation
-from pptx.util import Inches, Pt
 from dotenv import load_dotenv
 from supabase import create_client, Client
-import matplotlib.pyplot as plt
-from PIL import Image
+from slides_admin import generate_title_slide_if_needed
+from slides_exhibit import (
+    generate_chart_slide,
+    generate_revenue_chart,
+    generate_yoy_chart,
+    generate_ticket_chart,
+    generate_market_size_chart,
+)
+from slides_summary import generate_summary_slide, generate_llama_summary
 
 # Constants
 REVENUE_SLIDE_TITLE = "Exhibit 1: Annual Revenue"
@@ -15,165 +21,16 @@ TICKET_SLIDE_TITLE = "Exhibit 3: Average Ticket Size"
 MARKET_SLIDE_TITLE = "Exhibit 4: Market Size"
 SUMMARY_SLIDE_TITLE = "Exhibit 5: Market Overview"
 TITLE_TEMPLATE = "modules/downloaded_title_template.pptx"
-EXHIBIT_TEMPLATE = "modules/downloaded_exhibit_template.pptx"
-SUMMARY_TEMPLATE = "modules/downloaded_summary_template.pptx"
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 
 # Load environment
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 LLM_MODEL = os.getenv("LLM_MODEL", "llama3")
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Chart Functions
-def generate_revenue_chart(path, summaries):
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
-    trusted = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["annual_revenue"] for b in trusted]
-    mean_val = sum(values) / len(values)
-    median_val = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(names, [v / 1_000_000 for v in values], color="#4CAF50")
-    ax.axhline(mean_val / 1_000_000, color='blue', linestyle='--', label=f"Mean: ${mean_val / 1_000_000:.1f}M")
-    ax.axhline(median_val / 1_000_000, color='purple', linestyle=':', label=f"Median: ${median_val / 1_000_000:.1f}M")
-    ax.set_title("Annual Revenue")
-    ax.set_ylabel("Revenue ($M)")
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    return True
-
-def generate_yoy_chart(path, summaries):
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("yoy_growth") is not None]
-    trusted = sorted(trusted, key=lambda x: x["yoy_growth"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["yoy_growth"] * 100 for b in trusted]
-    avg = sum(values) / len(values)
-    median = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(names, values, color=["green" if v >= 0 else "red" for v in values])
-    ax.axhline(avg, color='blue', linestyle='--', label=f"Mean: {avg:.1f}%")
-    ax.axhline(median, color='purple', linestyle=':', label=f"Median: {median:.1f}%")
-    ax.set_title("YoY Growth")
-    ax.set_ylabel("Growth (%)")
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    return True
-
-def generate_ticket_chart(path, summaries):
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("ticket_size") is not None]
-    trusted = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["ticket_size"] for b in trusted]
-    mean_val = sum(values) / len(values)
-    median_val = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(names, values, color="#4CAF50")
-    ax.axhline(mean_val, color='blue', linestyle='--', label=f"Mean: ${mean_val:.0f}")
-    ax.axhline(median_val, color='purple', linestyle=':', label=f"Median: ${median_val:.0f}")
-    ax.set_title("Ticket Size")
-    ax.set_ylabel("Dollars ($)")
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    return True
-
-def generate_market_size_chart(path, summaries):
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("annual_revenue") is not None]
-    trusted_total = sum(b["annual_revenue"] for b in trusted)
-    projected_total = trusted_total * 1.5
-    fig, ax = plt.subplots(figsize=(5, 5))
-    bars = ax.bar(["Verified", "Projected"], [trusted_total / 1_000_000, projected_total / 1_000_000],
-                  color=["#4CAF50", "#C0C0C0"], edgecolor="black")
-    bars[1].set_hatch("//")
-    ax.set_title("Estimated Market Size")
-    ax.set_ylabel("Revenue ($M)")
-    plt.tight_layout()
-    plt.savefig(path)
-    plt.close()
-    return True
-
-# Slide generation
-
-def generate_chart_slide(chart_title, image_path, summary_text):
-    ppt = Presentation(EXHIBIT_TEMPLATE)
-    slide = ppt.slides[0]
-    for shape in slide.shapes:
-        if not shape.has_text_frame:
-            continue
-        if "Exhibit {TBD}" in shape.text:
-            shape.text_frame.clear()
-            shape.text_frame.paragraphs[0].add_run().text = chart_title
-        elif "{TBD ANALYSIS}" in shape.text:
-            shape.text_frame.clear()
-            shape.text_frame.paragraphs[0].add_run().text = summary_text
-    img = Image.open(image_path)
-    width = Inches(7.5)
-    top = Inches(2.0)
-    left = Inches((10 - 7.5) / 2)
-    slide.shapes.add_picture(image_path, left, top, width=width)
-    return ppt
-
-def generate_summary_slide(output_path, trusted, end_date, summary_stats, summary_analysis):
-    ppt = Presentation(SUMMARY_TEMPLATE)
-    slide = ppt.slides[0]
-    for shape in slide.shapes:
-        if not shape.has_text_frame:
-            continue
-        if "{TBD TITLE}" in shape.text:
-            shape.text_frame.clear()
-            shape.text_frame.paragraphs[0].add_run().text = SUMMARY_SLIDE_TITLE
-        elif "{TBD AS OF DATE}" in shape.text:
-            shape.text = shape.text.replace("{TBD AS OF DATE}", end_date)
-        elif "{TBD TOTAL BUSINESSES}" in shape.text:
-            shape.text = shape.text.replace("{TBD TOTAL BUSINESSES}", str(summary_stats["total"]))
-        elif "{TBD TRUSTED BUSINESSES}" in shape.text:
-            shape.text = shape.text.replace("{TBD TRUSTED BUSINESSES}", str(summary_stats["trusted"]))
-        elif "{TBD: MEAN REVENUE}" in shape.text:
-            shape.text = shape.text.replace("{TBD: MEAN REVENUE}", f"${summary_stats['mean_revenue']:,.0f}")
-        elif "{TBD YOY GROWTH}" in shape.text:
-            shape.text = shape.text.replace("{TBD YOY GROWTH}", f"{summary_stats['mean_yoy']:.1f}%")
-        elif "{TBD MEDIAM REVENUE}" in shape.text:
-            shape.text = shape.text.replace("{TBD MEDIAM REVENUE}", f"${summary_stats['median_revenue']:,.0f}")
-        elif "{TBD AVERAGE TICKET SIZE}" in shape.text:
-            shape.text = shape.text.replace("{TBD AVERAGE TICKET SIZE}", f"${summary_stats['avg_ticket']:,.0f}")
-        elif "{TBD SUMMARY ANALYSIS}" in shape.text:
-            shape.text_frame.clear()
-            shape.text_frame.paragraphs[0].add_run().text = summary_analysis
-    ppt.save(output_path)
-
-def generate_llama_summary(slide_summaries: dict) -> str:
-    prompt = f"""
-You are a market research consultant. Based on the following summaries:
-
-1. Revenue: {slide_summaries.get('revenue')}
-2. YoY Growth: {slide_summaries.get('yoy')}
-3. Ticket Size: {slide_summaries.get('ticket')}
-4. Market Size: {slide_summaries.get('market')}
-
-Write a short, professional summary about the market's attractiveness, notable patterns, standout businesses, and whether this is a good location to open a new business.
-""".strip()
-
-    result = subprocess.run(
-        ["ollama", "run", LLM_MODEL],
-        input=prompt.encode("utf-8"),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    return result.stdout.decode("utf-8").strip()
-
-# Controller
 
 def export_project_pptx(project_id: str, supabase):
     print(f"🚀 Starting export for project ID: {project_id}")
@@ -237,14 +94,10 @@ def export_project_pptx(project_id: str, supabase):
     save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_5.pptx", summaries, summary_market)
 
     # Title Slide
-    title_path = os.path.join(project_output_dir, "slide_1_title.pptx")
-    if not os.path.exists(title_path):
-        title_prs = Presentation(TITLE_TEMPLATE)
-        title_prs.save(title_path)
-        print(f"✅ Saved title slide to: {title_path}")
+    generate_title_slide_if_needed(project_output_dir, TITLE_TEMPLATE)
 
     # Summary Slide
-    summary_analysis = generate_llama_summary(slide_summaries)
+    summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
     summary_stats = {
         "total": len(summaries),
         "trusted": len(trusted),
