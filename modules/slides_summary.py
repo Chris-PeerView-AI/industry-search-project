@@ -3,6 +3,7 @@
 import subprocess
 from pptx import Presentation
 from pptx.util import Inches, Pt
+from datetime import datetime
 
 SUMMARY_TEMPLATE = "modules/downloaded_summary_template.pptx"
 
@@ -15,24 +16,31 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
             continue
         if "{TBD TITLE}" in shape.text:
             shape.text_frame.clear()
-            shape.text_frame.paragraphs[0].add_run().text = "Exhibit 5: Market Overview"
+            p = shape.text_frame.paragraphs[0]
+            run = p.add_run()
+            run.text = "Exhibit 5: Market Overview"
+            run.font.name = "Montserrat"
+            run.font.size = Pt(30)
+            run.font.bold = True
         elif "{TBD AS OF DATE}" in shape.text:
             shape.text = shape.text.replace("{TBD AS OF DATE}", end_date)
         elif "{TBD TOTAL BUSINESSES}" in shape.text:
-            shape.text = shape.text.replace("{TBD TOTAL BUSINESSES}", str(summary_stats["total"]))
+            shape.text = shape.text.replace("{TBD TOTAL BUSINESSES}", str(summary_stats.get("total", "-")))
         elif "{TBD TRUSTED BUSINESSES}" in shape.text:
-            shape.text = shape.text.replace("{TBD TRUSTED BUSINESSES}", str(summary_stats["trusted"]))
+            shape.text = shape.text.replace("{TBD TRUSTED BUSINESSES}", str(summary_stats.get("trusted", "-")))
         elif "{TBD: MEAN REVENUE}" in shape.text:
-            shape.text = shape.text.replace("{TBD: MEAN REVENUE}", f"${summary_stats['mean_revenue']:,.0f}")
+            shape.text = shape.text.replace("{TBD: MEAN REVENUE}", f"${summary_stats.get('mean_revenue', 0):,.0f}")
         elif "{TBD YOY GROWTH}" in shape.text:
-            shape.text = shape.text.replace("{TBD YOY GROWTH}", f"{summary_stats['mean_yoy']:.1f}%")
+            shape.text = shape.text.replace("{TBD YOY GROWTH}", f"{summary_stats.get('mean_yoy', 0):.1f}%")
         elif "{TBD MEDIAM REVENUE}" in shape.text:
-            shape.text = shape.text.replace("{TBD MEDIAM REVENUE}", f"${summary_stats['median_revenue']:,.0f}")
+            shape.text = shape.text.replace("{TBD MEDIAM REVENUE}", f"${summary_stats.get('median_revenue', 0):,.0f}")
         elif "{TBD AVERAGE TICKET SIZE}" in shape.text:
-            shape.text = shape.text.replace("{TBD AVERAGE TICKET SIZE}", f"${summary_stats['avg_ticket']:,.0f}")
+            shape.text = shape.text.replace("{TBD AVERAGE TICKET SIZE}", f"${summary_stats.get('avg_ticket', 0):,.0f}")
         elif "{TBD SUMMARY ANALYSIS}" in shape.text:
             shape.text_frame.clear()
-            shape.text_frame.paragraphs[0].add_run().text = summary_analysis
+            truncated_lines = summary_analysis.strip().split("\n")[:10]
+            truncated_text = "\n".join(truncated_lines)
+            shape.text_frame.paragraphs[0].add_run().text = truncated_text
     ppt.save(output_path)
 
 
@@ -55,3 +63,18 @@ Write a short, professional summary about the market's attractiveness, notable p
         stderr=subprocess.PIPE,
     )
     return result.stdout.decode("utf-8").strip()
+
+
+def get_latest_period_end(supabase: object, project_id: str) -> str:
+    resp = (
+        supabase.table("enigma_metrics")
+        .select("period_end_date")
+        .eq("project_id", project_id)
+        .order("period_end_date", desc=True)
+        .limit(1)
+        .execute()
+    )
+    if resp.data:
+        return datetime.strptime(resp.data[0]["period_end_date"], "%Y-%m-%d").strftime("%B %Y")
+    return datetime.now().strftime("%B %Y")
+

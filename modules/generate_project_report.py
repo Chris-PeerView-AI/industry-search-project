@@ -12,7 +12,7 @@ from slides_exhibit import (
     generate_ticket_chart,
     generate_market_size_chart,
 )
-from slides_summary import generate_summary_slide, generate_llama_summary
+from slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end
 from convert_slides_to_pdf import convert_and_merge_slides
 
 # Constants
@@ -39,6 +39,7 @@ def export_project_pptx(project_id: str, supabase):
     download_all_templates()
 
     summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
+    print(f"📊 {len(summaries)} rows found in enigma_summaries.")
     if not summaries:
         print("❌ No data found for this project.")
         return
@@ -53,7 +54,7 @@ def export_project_pptx(project_id: str, supabase):
             ppt.save(os.path.join(project_output_dir, filename))
             print(f"✅ Saved {title} to: {filename}")
 
-    end_date = datetime.now().strftime("%B %Y")
+    end_date = get_latest_period_end(supabase, project_id)
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     slide_summaries = {}
 
