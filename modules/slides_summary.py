@@ -8,7 +8,7 @@ from datetime import datetime
 SUMMARY_TEMPLATE = "modules/downloaded_summary_template.pptx"
 
 
-def generate_summary_slide(output_path, trusted, end_date, summary_stats, summary_analysis):
+def generate_summary_slide(output_path, trusted, end_date, summary_stats, summary_analysis, city="", industry=""):
     ppt = Presentation(SUMMARY_TEMPLATE)
     slide = ppt.slides[0]
     for shape in slide.shapes:
@@ -20,7 +20,7 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
             shape.text_frame.clear()
             p = shape.text_frame.paragraphs[0]
             run = p.add_run()
-            run.text = "Exhibit 5: Market Overview"
+            run.text = f"{city}: {industry}".strip()
             run.font.name = "Montserrat"
             run.font.size = Pt(30)
             run.font.bold = True
@@ -44,10 +44,9 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
 
         if "{TBD SUMMARY ANALYSIS}" in text:
             shape.text_frame.clear()
-            truncated_text = " ".join(summary_analysis.strip().split())[:2500]  # ~400 words
             p = shape.text_frame.paragraphs[0]
             run = p.add_run()
-            run.text = truncated_text
+            run.text = summary_analysis.strip()
             run.font.size = Pt(8)
         else:
             shape.text_frame.text = text
@@ -56,6 +55,16 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
 
 
 def generate_llama_summary(slide_summaries: dict, model_name: str = "llama3") -> str:
+    sentiment = "neutral"
+    try:
+        mean_yoy = float(slide_summaries.get("yoy", "0").split("Avg:")[-1].split("%")[0])
+        if mean_yoy > 10:
+            sentiment = "positive"
+        elif mean_yoy < 0:
+            sentiment = "negative"
+    except:
+        pass
+
     prompt = f"""
 You are a market research consultant. Based on the following summaries:
 
@@ -64,7 +73,8 @@ You are a market research consultant. Based on the following summaries:
 3. Ticket Size: {slide_summaries.get('ticket')}
 4. Market Size: {slide_summaries.get('market')}
 
-Write a short, professional summary about the market's attractiveness, notable patterns, standout businesses, and whether this is a good location to open a new business.
+Write a professional, approximately 750-word summary about the market's attractiveness, notable patterns, standout businesses, and whether this is a good location to open a new business.
+The tone should be {sentiment}. If growth is above 10%, highlight strong momentum. If it's below 0%, note concerning trends. If in-between, maintain a balanced tone.
 """.strip()
 
     result = subprocess.run(

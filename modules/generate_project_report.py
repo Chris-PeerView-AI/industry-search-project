@@ -44,6 +44,23 @@ def export_project_pptx(project_id: str, supabase):
         print("❌ No data found for this project.")
         return
 
+    # Fetch project metadata (industry and city)
+    project_meta = (
+        supabase.table("search_projects")
+        .select("industry, location")
+        .eq("id", project_id)
+        .single()
+        .execute()
+        .data
+    )
+
+    if not project_meta:
+        print("❌ Project metadata not found.")
+        return
+
+    industry = project_meta.get("industry", "Industry")
+    city = project_meta.get("location", "City")
+
     project_output_dir = os.path.join(OUTPUT_DIR, project_id)
     os.makedirs(project_output_dir, exist_ok=True)
 
@@ -57,9 +74,6 @@ def export_project_pptx(project_id: str, supabase):
     end_date = get_latest_period_end(supabase, project_id)
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     slide_summaries = {}
-
-    industry = summaries[0].get("industry", "Industry")
-    city = summaries[0].get("city", "City")
 
     # Revenue
     sorted_rev = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
@@ -113,12 +127,12 @@ def export_project_pptx(project_id: str, supabase):
         "mean_yoy": avg_yoy * 100
     }
     summary_path = os.path.join(project_output_dir, "slide_6_summary.pptx")
-    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis)
+    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, industry, city)
     print("✅ All slides including summary slide generated.")
 
     # Convert and Merge PDF
     pdf_path = convert_and_merge_slides(project_output_dir, industry, city)
-    print(f"📎 Final PDF report saved to {pdf_path}")
+    print(f"💎 Final PDF report saved to {pdf_path}")
 
 if __name__ == "__main__":
     export_project_pptx("5c36b37b-1530-43be-837a-8491d914dfc6", supabase)
