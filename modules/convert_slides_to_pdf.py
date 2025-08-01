@@ -1,6 +1,7 @@
 # convert_slides_to_pdf.py
 
 import os
+import re
 import subprocess
 from PyPDF2 import PdfMerger
 from datetime import datetime
@@ -23,16 +24,17 @@ def convert_all_slides_to_pdf(project_output_dir: str):
         if file.endswith(".pdf"):
             os.remove(os.path.join(project_output_dir, file))
 
-    for i in range(1, 7):
-        pptx_filename = f"slide_{i}_summary.pptx" if i == 6 else f"slide_{i}.pptx"
-        pptx_path = os.path.join(project_output_dir, pptx_filename)
+    # Match filenames like slide_1.pptx, slide_1_title.pptx, slide_10.pptx, etc.
+    slide_files = [f for f in os.listdir(project_output_dir) if re.match(r"slide_(\d+).*\.pptx$", f)]
+    slide_files.sort(key=lambda f: int(re.match(r"slide_(\d+)", f).group(1)))
+
+    for filename in slide_files:
+        pptx_path = os.path.join(project_output_dir, filename)
         pdf_path = pptx_path.replace(".pptx", ".pdf")
-        if os.path.exists(pptx_path):
-            pptx_to_pdf_libreoffice(pptx_path, pdf_path)
-            pdf_paths.append(pdf_path)
-            print(f"✅ Converted {pptx_filename} to PDF")
-        else:
-            print(f"⚠️ Missing: {pptx_filename}")
+        pptx_to_pdf_libreoffice(pptx_path, pdf_path)
+        pdf_paths.append(pdf_path)
+        print(f"✅ Converted {filename} to PDF")
+
     return pdf_paths
 
 

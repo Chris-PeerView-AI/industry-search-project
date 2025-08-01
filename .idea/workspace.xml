@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Made the report creation code more modular.">
-      <change afterPath="$PROJECT_DIR$/modules/convert_slides_to_pdf.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Produce a combined PDF at the end of the process">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/convert_slides_to_pdf.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/convert_slides_to_pdf.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/slides_exhibit.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_exhibit.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -526,11 +526,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754052945308</updated>
     </task>
-    <option name="localTasksCounter" value="41" />
+    <task id="LOCAL-00041" summary="Produce a combined PDF at the end of the process">
+      <option name="closed" value="true" />
+      <created>1754053696131</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1754053696131</updated>
+    </task>
+    <option name="localTasksCounter" value="42" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Expanded Review details" />
     <MESSAGE value="Adjusted Map Display details" />
     <MESSAGE value="Adjusted manual review to simplify" />
     <MESSAGE value="Tested Enigma API to pull Golf Cave as an example" />
@@ -555,6 +562,7 @@
     <MESSAGE value="REmoving OpenAI from Generate Project Report" />
     <MESSAGE value="Basic set of charts and summary produced. Still need refinement." />
     <MESSAGE value="Made the report creation code more modular." />
-    <option name="LAST_COMMIT_MESSAGE" value="Made the report creation code more modular." />
+    <MESSAGE value="Produce a combined PDF at the end of the process" />
+    <option name="LAST_COMMIT_MESSAGE" value="Produce a combined PDF at the end of the process" />
   </component>
 </project>
