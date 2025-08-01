@@ -142,17 +142,22 @@ def generate_map_chart(output_path, summaries):
     if df.empty:
         return False
 
-    # Use the geographic center as the default map center
     center_lat = df["latitude"].mean()
     center_lng = df["longitude"].mean()
-    m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
+    m = folium.Map(location=[center_lat, center_lng], zoom_start=13)  # default zoom_start won't matter due to fit_bounds
 
-    # Compute farthest point for radius
+    # Determine bounds of the map to include all points
+    latitudes = df["latitude"].tolist()
+    longitudes = df["longitude"].tolist()
+    sw = [min(latitudes), min(longitudes)]  # southwest corner
+    ne = [max(latitudes), max(longitudes)]  # northeast corner
+    m.fit_bounds([sw, ne])  # Adjust zoom and center dynamically
+
+    # Draw radius circle using geodesic max distance from center
     farthest_km = max(
         geodesic((center_lat, center_lng), (lat, lng)).km
         for lat, lng in zip(df["latitude"], df["longitude"])
     )
-
     folium.Circle(
         location=[center_lat, center_lng],
         radius=farthest_km * 1000,
@@ -171,7 +176,6 @@ def generate_map_chart(output_path, summaries):
             icon=folium.Icon(color=color)
         ).add_to(m)
 
-    # Save map to HTML and convert to PNG via headless Chrome
     tmp_html = output_path.replace(".png", ".html")
     m.save(tmp_html)
 
