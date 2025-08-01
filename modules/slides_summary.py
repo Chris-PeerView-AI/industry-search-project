@@ -50,7 +50,7 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
             run.text = summary_analysis.strip()
             run.font.size = Pt(7)
         else:
-            shape.text_frame.text = text
+            shape.text_frame.text = text  # Ensure replaced text is assigned back
 
     # Add map image if provided
     if map_image_path and os.path.exists(map_image_path):

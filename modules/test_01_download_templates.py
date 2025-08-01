@@ -14,7 +14,11 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 TEMPLATES = {
     "2025_08_MarketOverview_Basic_TitleSlide.pptx": "modules/downloaded_title_template.pptx",
     "2025_08_MarketOverview_Basic_Exhibit.pptx": "modules/downloaded_exhibit_template.pptx",
-    "2025_08_MarketOverview_Basic_IndustrySummary.pptx": "modules/downloaded_summary_template.pptx"
+    "2025_08_MarketOverview_Basic_IndustrySummary.pptx": "modules/downloaded_summary_template.pptx",
+    "2025_08_MarketOverview_Basic_Disclosures.pptx": "modules/downloaded_disclosures_template.pptx",
+    "2025_08_MarketOverview_Basic_ExhibitIntro.pptx": "modules/downloaded_exhibit_intro_template.pptx",
+    "2025_08_MarketOverview_Basic_IntroSlides.pptx": "modules/downloaded_intro_template.pptx",
+    "2025_08_MarketOverview_Basic_AppendixIntro.pptx": "modules/downloaded_appendix_intro_template.pptx"
 }
 
 def download_file_from_drive(service, drive_filename, local_filename):

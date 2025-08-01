@@ -15,6 +15,7 @@ from slides_exhibit import (
 )
 from slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end
 from convert_slides_to_pdf import convert_and_merge_slides
+from pptx import Presentation
 
 # Constants
 REVENUE_SLIDE_TITLE = "Exhibit 1: Annual Revenue"
@@ -24,6 +25,10 @@ MARKET_SLIDE_TITLE = "Exhibit 4: Market Size"
 MAP_SLIDE_TITLE = "Exhibit 5: Benchmark Map"
 SUMMARY_SLIDE_TITLE = "Exhibit 6: Market Overview"
 TITLE_TEMPLATE = "modules/downloaded_title_template.pptx"
+INTRO_TEMPLATE = "modules/downloaded_intro_template.pptx"
+EXHIBIT_INTRO_TEMPLATE = "modules/downloaded_exhibit_intro_template.pptx"
+APPENDIX_INTRO_TEMPLATE = "modules/downloaded_appendix_intro_template.pptx"
+DISCLOSURES_TEMPLATE = "modules/downloaded_disclosures_template.pptx"
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 
 # Load environment
@@ -34,6 +39,30 @@ LLM_MODEL = os.getenv("LLM_MODEL", "llama3")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def copy_template_slides(template_path, output_path_prefix, start_slide_num):
+    source_ppt = Presentation(template_path)
+    for i, slide in enumerate(source_ppt.slides):
+        dest_ppt = Presentation()
+        blank_slide_layout = dest_ppt.slide_layouts[6]
+        new_slide = dest_ppt.slides.add_slide(blank_slide_layout)
+
+        for shape in slide.shapes:
+            if shape.shape_type == 13:  # Picture
+                image = shape.image
+                left = shape.left
+                top = shape.top
+                height = shape.height
+                from io import BytesIO
+                image_stream = BytesIO(image.blob)
+                new_slide.shapes.add_picture(image_stream, left, top, height=height)
+            elif shape.has_text_frame:
+                textbox = new_slide.shapes.add_textbox(shape.left, shape.top, shape.width, shape.height)
+                textbox.text = shape.text
+
+        output_path = f"{output_path_prefix}_{start_slide_num + i}.pptx"
+        dest_ppt.save(output_path)
+        print(f"✅ Inserted template slide: {output_path}")
 
 
 def export_project_pptx(project_id: str, supabase):
@@ -67,16 +96,40 @@ def export_project_pptx(project_id: str, supabase):
     project_output_dir = os.path.join(OUTPUT_DIR, project_id)
     os.makedirs(project_output_dir, exist_ok=True)
 
+    # Title Slide
+    generate_title_slide_if_needed(project_output_dir, TITLE_TEMPLATE)
+
+    # Intro Slides (Slide 10+)
+    copy_template_slides(INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_10_intro"), 0)
+
+    end_date = get_latest_period_end(supabase, project_id)
+    trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
+    slide_summaries = {}
+
+    # Summary Slide (Slide 11)
+    summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
+    summary_analysis = summary_analysis.replace("Pet Industry in [Location]", f"{industry} in {city}")
+    summary_stats = {
+        "total": len(summaries),
+        "trusted": len(trusted),
+        "mean_revenue": 0,
+        "median_revenue": 0,
+        "avg_ticket": 0,
+        "mean_yoy": 0
+    }
+    summary_path = os.path.join(project_output_dir, "slide_11_market_summary.pptx")
+    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry,
+                           map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
+
+    # Exhibit Intro (Slide 26)
+    copy_template_slides(EXHIBIT_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_26_exhibit_intro"), 0)
+
     def save_slide(title, chart_func, filename, summaries, summary_text):
         image_path = os.path.join(project_output_dir, filename.replace(".pptx", ".png"))
         if chart_func(image_path, summaries):
             ppt = generate_chart_slide(title, image_path, summary_text)
             ppt.save(os.path.join(project_output_dir, filename))
             print(f"✅ Saved {title} to: {filename}")
-
-    end_date = get_latest_period_end(supabase, project_id)
-    trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
-    slide_summaries = {}
 
     # Revenue
     sorted_rev = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
@@ -90,8 +143,7 @@ def export_project_pptx(project_id: str, supabase):
     save_slide(REVENUE_SLIDE_TITLE, generate_revenue_chart, "slide_21_revenue.pptx", summaries, summary_revenue)
 
     # YoY Growth
-    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"],
-                        reverse=True)
+    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"], reverse=True)
     top_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[:3])
     bottom_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[-3:])
     avg_yoy = sum(b["yoy_growth"] for b in sorted_yoy) / len(sorted_yoy)
@@ -122,24 +174,8 @@ def export_project_pptx(project_id: str, supabase):
     slide_summaries["map"] = summary_map
     save_slide(MAP_SLIDE_TITLE, generate_map_chart, "slide_25_map.pptx", summaries, summary_map)
 
-    # Title Slide
-    generate_title_slide_if_needed(project_output_dir, TITLE_TEMPLATE)
-
-    # Summary Slide
-    summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
-    summary_analysis = summary_analysis.replace("Pet Industry in [Location]", f"{industry} in {city}")
-    summary_stats = {
-        "total": len(summaries),
-        "trusted": len(trusted),
-        "mean_revenue": avg_rev,
-        "median_revenue": med_rev,
-        "avg_ticket": avg_ticket,
-        "mean_yoy": avg_yoy * 100
-    }
-    summary_path = os.path.join(project_output_dir, "slide_11_market_summary.pptx")
-    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, industry, city,
-                           map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
-    print("✅ All slides including summary slide generated.")
+    # Appendix Intro
+    copy_template_slides(APPENDIX_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_40_appendix_intro"), 0)
 
     # Appendix Slides
     print("📎 Starting appendix slide generation...")
@@ -164,6 +200,9 @@ def export_project_pptx(project_id: str, supabase):
         appendix_count += 1
 
     print(f"✅ Total appendix slides generated: {appendix_count}")
+
+    # Disclosures (Slide 999+)
+    copy_template_slides(DISCLOSURES_TEMPLATE, os.path.join(project_output_dir, "slide_999_disclosures"), 0)
 
     # Convert and Merge PDF
     pdf_path = convert_and_merge_slides(project_output_dir, industry, city)
