@@ -41,28 +41,10 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def copy_template_slides(template_path, output_path_prefix, start_slide_num):
-    source_ppt = Presentation(template_path)
-    for i, slide in enumerate(source_ppt.slides):
-        dest_ppt = Presentation()
-        blank_slide_layout = dest_ppt.slide_layouts[6]
-        new_slide = dest_ppt.slides.add_slide(blank_slide_layout)
-
-        for shape in slide.shapes:
-            if shape.shape_type == 13:  # Picture
-                image = shape.image
-                left = shape.left
-                top = shape.top
-                height = shape.height
-                from io import BytesIO
-                image_stream = BytesIO(image.blob)
-                new_slide.shapes.add_picture(image_stream, left, top, height=height)
-            elif shape.has_text_frame:
-                textbox = new_slide.shapes.add_textbox(shape.left, shape.top, shape.width, shape.height)
-                textbox.text = shape.text
-
-        output_path = f"{output_path_prefix}_{start_slide_num + i}.pptx"
-        dest_ppt.save(output_path)
-        print(f"✅ Inserted template slide: {output_path}")
+    import shutil
+    output_path = f"{output_path_prefix}_{start_slide_num}.pptx"
+    shutil.copy(template_path, output_path)
+    print(f"✅ Copied template file to: {output_path}")
 
 
 def export_project_pptx(project_id: str, supabase):
