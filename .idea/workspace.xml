@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Adjusted exhibit slides">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed As of Date in Summary OVerview.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/slides_summary.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_summary.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -542,11 +541,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754054791271</updated>
     </task>
-    <option name="localTasksCounter" value="43" />
+    <task id="LOCAL-00043" summary="Fixed As of Date in Summary OVerview.">
+      <option name="closed" value="true" />
+      <created>1754055776191</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1754055776191</updated>
+    </task>
+    <option name="localTasksCounter" value="44" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Adjusted manual review to simplify" />
     <MESSAGE value="Tested Enigma API to pull Golf Cave as an example" />
     <MESSAGE value="Streamlit UI for Enigma Pulls. Still Not complete but Streamlit runs and pulls project details" />
     <MESSAGE value="Fixed lost main_ui.py code" />
@@ -571,6 +577,7 @@
     <MESSAGE value="Made the report creation code more modular." />
     <MESSAGE value="Produce a combined PDF at the end of the process" />
     <MESSAGE value="Adjusted exhibit slides" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adjusted exhibit slides" />
+    <MESSAGE value="Fixed As of Date in Summary OVerview." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed As of Date in Summary OVerview." />
   </component>
 </project>

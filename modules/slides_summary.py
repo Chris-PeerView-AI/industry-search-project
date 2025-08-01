@@ -14,7 +14,9 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
-        if "{TBD TITLE}" in shape.text:
+
+        text = shape.text_frame.text
+        if "{TBD TITLE}" in text:
             shape.text_frame.clear()
             p = shape.text_frame.paragraphs[0]
             run = p.add_run()
@@ -22,25 +24,32 @@ def generate_summary_slide(output_path, trusted, end_date, summary_stats, summar
             run.font.name = "Montserrat"
             run.font.size = Pt(30)
             run.font.bold = True
-        elif "{TBD AS OF DATE}" in shape.text:
-            shape.text = shape.text.replace("{TBD AS OF DATE}", end_date)
-        elif "{TBD TOTAL BUSINESSES}" in shape.text:
-            shape.text = shape.text.replace("{TBD TOTAL BUSINESSES}", str(summary_stats.get("total", "-")))
-        elif "{TBD TRUSTED BUSINESSES}" in shape.text:
-            shape.text = shape.text.replace("{TBD TRUSTED BUSINESSES}", str(summary_stats.get("trusted", "-")))
-        elif "{TBD: MEAN REVENUE}" in shape.text:
-            shape.text = shape.text.replace("{TBD: MEAN REVENUE}", f"${summary_stats.get('mean_revenue', 0):,.0f}")
-        elif "{TBD YOY GROWTH}" in shape.text:
-            shape.text = shape.text.replace("{TBD YOY GROWTH}", f"{summary_stats.get('mean_yoy', 0):.1f}%")
-        elif "{TBD MEDIAM REVENUE}" in shape.text:
-            shape.text = shape.text.replace("{TBD MEDIAM REVENUE}", f"${summary_stats.get('median_revenue', 0):,.0f}")
-        elif "{TBD AVERAGE TICKET SIZE}" in shape.text:
-            shape.text = shape.text.replace("{TBD AVERAGE TICKET SIZE}", f"${summary_stats.get('avg_ticket', 0):,.0f}")
-        elif "{TBD SUMMARY ANALYSIS}" in shape.text:
+            continue
+
+        replacements = {
+            "{TBD AS OF DATE}": end_date,
+            "{TBD TOTAL BUSINESSES}": str(summary_stats.get("total", "-")),
+            "{TBD TRUSTED BUSINESSES}": str(summary_stats.get("trusted", "-")),
+            "{TBD: MEAN REVENUE}": f"${summary_stats.get('mean_revenue', 0):,.0f}",
+            "{TBD YOY GROWTH}": f"{summary_stats.get('mean_yoy', 0):.1f}%",
+            "{TBD MEDIAN REVENUE}": f"${summary_stats.get('median_revenue', 0):,.0f}",
+            "{TBD MEDIAM REVENUE}": f"${summary_stats.get('median_revenue', 0):,.0f}",
+            "{TBD AVERAGE TICKET SIZE}": f"${summary_stats.get('avg_ticket', 0):,.0f}",
+            "{TBD MEDIAN TICKET}": f"${summary_stats.get('median_ticket', 0):,.0f}",
+        }
+
+        for key, val in replacements.items():
+            if key in text:
+                text = text.replace(key, val)
+
+        if "{TBD SUMMARY ANALYSIS}" in text:
             shape.text_frame.clear()
             truncated_lines = summary_analysis.strip().split("\n")[:10]
             truncated_text = "\n".join(truncated_lines)
             shape.text_frame.paragraphs[0].add_run().text = truncated_text
+        else:
+            shape.text_frame.text = text
+
     ppt.save(output_path)
 
 
@@ -77,4 +86,3 @@ def get_latest_period_end(supabase: object, project_id: str) -> str:
     if resp.data:
         return datetime.strptime(resp.data[0]["period_end_date"], "%Y-%m-%d").strftime("%B %Y")
     return datetime.now().strftime("%B %Y")
-
