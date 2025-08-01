@@ -76,6 +76,15 @@ Write a short, professional summary about the market's attractiveness, notable p
     return result.stdout.decode("utf-8").strip()
 
 
+def get_market_size_analysis():
+    return (
+        "This chart compares the total verified revenue from businesses with high-quality data to an estimate "
+        "for the full local market. The upper bound assumes that businesses without usable data perform similarly "
+        "to those with data, which likely overstates true market size. Poor data quality is often associated with smaller "
+        "businesses or those facing operational challenges."
+    )
+
+
 def get_latest_period_end(supabase: object, project_id: str) -> str:
     resp = (
         supabase.table("enigma_metrics")

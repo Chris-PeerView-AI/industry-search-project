@@ -94,7 +94,8 @@ def export_project_pptx(project_id: str, supabase):
     # Market Size
     trusted_total = sum(b["annual_revenue"] for b in trusted)
     projected_total = trusted_total * 1.5
-    summary_market = f"Verified revenue: ${trusted_total:,.0f}, Projected market: ${projected_total:,.0f} (1.5x)."
+    from slides_summary import get_market_size_analysis
+    summary_market = get_market_size_analysis()
     slide_summaries["market"] = summary_market
     save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_5.pptx", summaries, summary_market)
 
