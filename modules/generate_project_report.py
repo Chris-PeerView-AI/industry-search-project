@@ -1,6 +1,7 @@
 # generate_project_report.py (main entrypoint)
 
 import os
+import shutil
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -40,16 +41,20 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-
 def copy_template_slides(template_path, output_path_prefix, start_slide_num):
-    import shutil
     output_path = f"{output_path_prefix}_{start_slide_num}.pptx"
     shutil.copy(template_path, output_path)
     print(f"✅ Copied template file to: {output_path}")
 
-
 def export_project_pptx(project_id: str, supabase):
     print(f"🚀 Starting export for project ID: {project_id}")
+
+    # Clean output directory for this project
+    project_output_dir = os.path.join(OUTPUT_DIR, project_id)
+    if os.path.exists(project_output_dir):
+        shutil.rmtree(project_output_dir)
+    os.makedirs(project_output_dir, exist_ok=True)
+
     from test_01_download_templates import download_all_templates
     download_all_templates()
 
@@ -76,11 +81,7 @@ def export_project_pptx(project_id: str, supabase):
     industry = project_meta.get("industry", "Industry")
     city = project_meta.get("location", "City")
 
-    project_output_dir = os.path.join(OUTPUT_DIR, project_id)
-    os.makedirs(project_output_dir, exist_ok=True)
-
     # Title Slide
-    from pptx import Presentation
     now_str = datetime.now().strftime("%B %Y")
     title_path = os.path.join(project_output_dir, "slide_1_title.pptx")
     ppt = Presentation(TITLE_TEMPLATE)
@@ -107,8 +108,6 @@ def export_project_pptx(project_id: str, supabase):
     slide_summaries = {}
 
     # Exhibit Intro (Slide 20)
-
-    # Exhibit Intro (Slide 20)
     copy_template_slides(EXHIBIT_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_20_exhibit_intro"), 0)
 
     def save_slide(title, chart_func, filename, summaries, summary_text):
@@ -130,8 +129,7 @@ def export_project_pptx(project_id: str, supabase):
     save_slide(REVENUE_SLIDE_TITLE, generate_revenue_chart, "slide_21_revenue.pptx", summaries, summary_revenue)
 
     # YoY Growth
-    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"],
-                        reverse=True)
+    sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"], reverse=True)
     top_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[:3])
     bottom_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[-3:])
     avg_yoy = sum(b["yoy_growth"] for b in sorted_yoy) / len(sorted_yoy)
@@ -176,8 +174,7 @@ def export_project_pptx(project_id: str, supabase):
     summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
     summary_analysis = summary_analysis.replace("Pet Industry in [Location]", f"{industry} in {city}")
     summary_path = os.path.join(project_output_dir, "slide_11_market_summary.pptx")
-    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry,
-                           map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
+    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry, map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
 
     # Appendix Intro
     copy_template_slides(APPENDIX_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_40_appendix_intro"), 0)
@@ -213,8 +210,6 @@ def export_project_pptx(project_id: str, supabase):
     # Convert and Merge PDF
     pdf_path = convert_and_merge_slides(project_output_dir, industry, city)
     print(f"💎 Final PDF report saved to {pdf_path}")
-
-
 
 if __name__ == "__main__":
     export_project_pptx("5c36b37b-1530-43be-837a-8491d914dfc6", supabase)
