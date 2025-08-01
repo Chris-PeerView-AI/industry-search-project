@@ -193,7 +193,8 @@ def export_project_pptx(project_id: str, supabase):
     tier_lookup = {r["id"]: r["tier_reason"] for r in search_rows}
     print(f"📝 Retrieved {len(tier_lookup)} tier_reason entries")
 
-    from slides_summary import generate_appendix_slide
+    from slides_summary import generate_individual_business_slide
+
     appendix_count = 0
     for i, biz in enumerate(trusted):
         sid = biz.get("search_result_id")
@@ -201,7 +202,7 @@ def export_project_pptx(project_id: str, supabase):
             continue
         biz["tier_reason"] = tier_lookup[sid]
         appendix_path = os.path.join(appendix_dir, f"slide_41_{i + 1}_IndividualBusiness.pptx")
-        generate_appendix_slide(appendix_path, biz)
+        generate_individual_business_slide(appendix_path, biz, end_date, industry, city)
         appendix_count += 1
 
     print(f"✅ Total appendix slides generated: {appendix_count}")
@@ -212,6 +213,7 @@ def export_project_pptx(project_id: str, supabase):
     # Convert and Merge PDF
     pdf_path = convert_and_merge_slides(project_output_dir, industry, city)
     print(f"💎 Final PDF report saved to {pdf_path}")
+
 
 
 if __name__ == "__main__":

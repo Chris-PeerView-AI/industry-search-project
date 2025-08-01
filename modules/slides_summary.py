@@ -1,13 +1,17 @@
 # slides_summary.py
 
-import os
 
+import os
 import subprocess
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from datetime import datetime
+from pptx.enum.text import PP_ALIGN
+from PIL import Image, ImageDraw
+from io import BytesIO
 
 SUMMARY_TEMPLATE = "modules/downloaded_summary_template.pptx"
+INDIVIDUAL_TEMPLATE = "modules/downloaded_businessview_template.pptx"
 
 def generate_summary_slide(output_path, trusted, end_date, summary_stats, summary_analysis, city="", industry="", map_image_path=None):
     ppt = Presentation(SUMMARY_TEMPLATE)
@@ -116,58 +120,66 @@ def get_market_size_analysis():
         "businesses or those facing operational challenges."
     )
 
-def generate_appendix_slide(output_path, business: dict, template_path="modules/downloaded_summary_template.pptx"):
-    print(f"🧩 Generating appendix slide for: {business.get('name')} (enigma_id: {business.get('enigma_id')})")
 
-    required_fields = ["annual_revenue", "ticket_size", "yoy_growth"]
-    for field in required_fields:
-        if business.get(field) is None:
-            print(f"⚠️  Missing field {field} for business {business.get('name')}, skipping.")
-            return
-    from pptx import Presentation
-    from pptx.util import Inches, Pt
+def generate_individual_business_slide(output_path, business: dict, end_date: str, industry: str, city: str):
+    print(f"🧩 Generating business slide for: {business.get('name')}")
 
-    ppt = Presentation(template_path)
+    ppt = Presentation(INDIVIDUAL_TEMPLATE)
     slide = ppt.slides[0]
 
-    name = business.get("name", "Business")
-    city = business.get("city", "")
-    state = business.get("state", "")
-    revenue = business.get("annual_revenue")
-    yoy = business.get("yoy_growth")
-    ticket = business.get("ticket_size")
-    tier_reason = business.get("tier_reason", "")
+    replacements = {
+        "{TBD TITLE}": business.get("name", "Business"),
+        "{TBD AS OF DATE}": end_date,
+        "{TBD ADDRESS}": f"{business.get('address', '')}, {business.get('city', '')}, {business.get('state', '')}",
+        "{TBD: MEAN REVENUE}": f"${business.get('annual_revenue', 0):,.0f}",
+        "{TBD YOY GROWTH}": f"{business.get('yoy_growth', 0)*100:.1f}%",
+        "{TBD AVERAGE TICKET SIZE}": f"${business.get('ticket_size', 0):,.0f}",
+    }
 
-    # Add content
+    summary_text = (
+        f"This business had estimated revenue of ${business.get('annual_revenue', 0):,.0f}, with an average ticket size of ${business.get('ticket_size', 0):,.0f} "
+        f"and year-over-year growth of {business.get('yoy_growth', 0)*100:.1f}%."
+    )
+    if business.get("tier_reason"):
+        summary_text += f" Reason for inclusion: {business['tier_reason'].strip()}"
+
     for shape in slide.shapes:
         if not shape.has_text_frame:
             continue
 
         text = shape.text_frame.text
-        if "{TBD TITLE}" in text:
-            shape.text_frame.clear()
-            p = shape.text_frame.paragraphs[0]
-            run = p.add_run()
-            run.text = f"{name} ({city}, {state})"
-            run.font.size = Pt(26)
-            run.font.bold = True
-            continue
+        for key, val in replacements.items():
+            if key in text:
+                text = text.replace(key, val)
 
         if "{TBD SUMMARY ANALYSIS}" in text:
-            summary_text = f"This business had estimated revenue of ${revenue:,.0f}, with an average ticket size of ${ticket:,.0f} and year-over-year growth of {yoy*100:.1f}%."
-            if tier_reason:
-                summary_text += f" Reason for inclusion: {tier_reason.strip()}"
             shape.text_frame.clear()
             p = shape.text_frame.paragraphs[0]
             run = p.add_run()
             run.text = summary_text
             run.font.size = Pt(7)
         else:
-            for key in ["{TBD AS OF DATE}", "{TBD TOTAL BUSINESSES}", "{TBD TRUSTED BUSINESSES}", "{TBD: MEAN REVENUE}"]:
-                text = text.replace(key, "")
             shape.text_frame.text = text
+            for p in shape.text_frame.paragraphs:
+                p.alignment = PP_ALIGN.LEFT
+
+    # Draw map pin overlay if lat/lon is available
+    if business.get("latitude") and business.get("longitude"):
+        try:
+            map_path = f"modules/output_map_with_pin_{business['id']}.png"
+            base_map = Image.open(f"modules/output/{business['project_id']}/slide_25_map.png").convert("RGBA")
+            draw = ImageDraw.Draw(base_map)
+            x, y = business['map_x'], business['map_y']  # assuming preprojected pixel coords
+            draw.ellipse((x - 6, y - 6, x + 6, y + 6), fill="gold", outline="black")
+            base_map.save(map_path)
+
+            slide.shapes.add_picture(map_path, Inches(4.0), Inches(2.25), width=Inches(4.0), height=Inches(3.5))
+        except Exception as e:
+            print(f"⚠️ Map rendering error: {e}")
 
     ppt.save(output_path)
+    print(f"✅ Saved individual business slide: {output_path}")
+
 
 def get_latest_period_end(supabase: object, project_id: str) -> str:
     resp = (

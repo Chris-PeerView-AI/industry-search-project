@@ -18,7 +18,8 @@ TEMPLATES = {
     "2025_08_MarketOverview_Basic_Disclosures.pptx": "modules/downloaded_disclosures_template.pptx",
     "2025_08_MarketOverview_Basic_ExhibitIntro.pptx": "modules/downloaded_exhibit_intro_template.pptx",
     "2025_08_MarketOverview_Basic_IntroSlides.pptx": "modules/downloaded_intro_template.pptx",
-    "2025_08_MarketOverview_Basic_AppendixIntro.pptx": "modules/downloaded_appendix_intro_template.pptx"
+    "2025_08_MarketOverview_Basic_AppendixIntro.pptx": "modules/downloaded_appendix_intro_template.pptx",
+    "2025_08_MarketOverview_Basic_BusinessView.pptx": "modules/downloaded_businessview_template.pptx"
 }
 
 def download_file_from_drive(service, drive_filename, local_filename):
