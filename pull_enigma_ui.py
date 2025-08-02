@@ -64,7 +64,7 @@ if project_id:
 
         if businesses_to_pull:
             st.subheader("📋 Select Businesses to Pull")
-            selected_rows = businesses_to_pull.copy()  # ✅ default to all selected
+            selected_rows = []
 
             for i, b in enumerate(businesses_to_pull):
                 with st.expander(f"{b['name']} ({b.get('city')}, {b.get('state')})", expanded=False):
@@ -73,7 +73,10 @@ if project_id:
                         st.write(f"Place ID: {b.get('place_id')}")
                         st.write(f"Tier: {b.get('tier')}")
                     with col2:
-                        st.checkbox("Pull?", key=f"pull_{i}", value=True)  # ✅ prechecked by default
+                        should_pull = st.checkbox("Pull?", key=f"pull_{i}", value=True)
+
+                    if should_pull:
+                        selected_rows.append(b)
 
             st.write(f"✅ {len(selected_rows)} businesses are pre-selected to pull")
 

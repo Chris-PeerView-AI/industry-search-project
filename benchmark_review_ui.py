@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from modules.business_metrics import generate_enigma_summaries, summarize_benchmark_stats
-from modules.pdf_export import export_project_pdf
+from modules.OLD_pdf_export import export_project_pdf
 from modules.pdf_only_export import generate_final_pdf
 from modules.generate_project_report import export_project_pptx
 from modules.pdf_only_export import generate_final_pdf, get_project_meta

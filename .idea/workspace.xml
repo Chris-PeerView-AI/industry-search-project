@@ -4,12 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Deleted TEST Files">
-      <change afterPath="$PROJECT_DIR$/modules/pdf_only_export.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Revamped benchmark_review_ui.py to point to the new PDF creation code">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/test_01_download_templates.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/download_templates.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pdf_export.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/OLD_pdf_export.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -207,14 +206,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00013" summary="Expanded Review details">
-      <option name="closed" value="true" />
-      <created>1753303338054</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1753303338054</updated>
     </task>
     <task id="LOCAL-00014" summary="Adjusted Map Display details">
       <option name="closed" value="true" />
@@ -600,11 +591,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754079397674</updated>
     </task>
-    <option name="localTasksCounter" value="62" />
+    <task id="LOCAL-00062" summary="Revamped benchmark_review_ui.py to point to the new PDF creation code">
+      <option name="closed" value="true" />
+      <created>1754082486534</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1754082486534</updated>
+    </task>
+    <option name="localTasksCounter" value="63" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Fixed title on exhibit" />
     <MESSAGE value="Growth Rate, Ticket Size and Market Size charts are drafted." />
     <MESSAGE value="REmoving OpenAI from Generate Project Report" />
     <MESSAGE value="Basic set of charts and summary produced. Still need refinement." />
@@ -629,6 +627,7 @@
     <MESSAGE value="Empties output folder before starting" />
     <MESSAGE value="Deleted OLD Files" />
     <MESSAGE value="Deleted TEST Files" />
-    <option name="LAST_COMMIT_MESSAGE" value="Deleted TEST Files" />
+    <MESSAGE value="Revamped benchmark_review_ui.py to point to the new PDF creation code" />
+    <option name="LAST_COMMIT_MESSAGE" value="Revamped benchmark_review_ui.py to point to the new PDF creation code" />
   </component>
 </project>

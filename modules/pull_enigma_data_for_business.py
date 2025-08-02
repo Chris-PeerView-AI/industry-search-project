@@ -61,9 +61,33 @@ def pull_enigma_data_for_business(business):
     }
     payload = {"query": query, "variables": variables}
     response = requests.post("https://api.enigma.com/graphql", headers=headers, json=payload)
-    response.raise_for_status()
-    data = response.json()
-    search_results = data.get("data", {}).get("search", [])
+
+    try:
+        response.raise_for_status()
+        data = response.json()
+
+        if "errors" in data:
+            print(f"⚠️ GraphQL returned errors for {name}, {city}, {state}, {zip_code}:")
+            for error in data["errors"]:
+                print("  →", error["message"])
+
+        search_results = data.get("data", {}).get("search", [])
+        if not search_results:
+            print(f"❌ No match found for {name}, {city}, {state}, {zip_code}")
+            print("📤 Sent payload:")
+            print(json.dumps(payload, indent=2))
+
+    except requests.exceptions.RequestException as e:
+        print(f"🚨 Request error for {name}, {city}, {state}, {zip_code}: {e}")
+        print("📤 Sent payload:")
+        print(json.dumps(payload, indent=2))
+        return
+    except json.JSONDecodeError:
+        print("🚨 Failed to parse JSON response from Enigma.")
+        print("🔄 Raw response:")
+        print(response.text)
+        return
+
     if not search_results:
         print(f"❌ No match found for {name}, {city}, {state}, {zip_code}")
         return
