@@ -2,6 +2,9 @@ import streamlit as st
 import uuid
 from datetime import datetime
 from supabase import create_client, Client
+from modules.business_metrics import generate_enigma_summaries, summarize_benchmark_stats
+
+
 
 # Fix path to import from modules directory
 import sys
@@ -96,6 +99,17 @@ if project_id:
                         except Exception as e:
                             st.error(f"❌ Failed to pull data for {b['name']}: {e}")
                     st.success("✅ Data pull complete.")
+
+                # ✅ NEW: Trigger summary generation immediately after pull
+                with st.spinner("Calculating summaries for project..."):
+                    try:
+                        generate_enigma_summaries(project_id)
+                        st.success("📊 Enigma summaries updated.")
+
+                        summarize_benchmark_stats(project_id)
+                        st.success("📈 Benchmark summary updated.")
+                    except Exception as e:
+                        st.error(f"⚠️ Failed to generate summaries: {e}")
 
         if skipped:
             with st.expander("⚠️ Skipped Businesses (Missing place_id)"):
