@@ -20,7 +20,6 @@ headers = {
 }
 
 def pull_enigma_data_for_business(business):
-    # Check if business already exists in Supabase
     existing = supabase.table("enigma_businesses")\
         .select("id")\
         .eq("place_id", business.get("place_id"))\
@@ -29,14 +28,14 @@ def pull_enigma_data_for_business(business):
     if existing.data and len(existing.data) > 0:
         print(f"⚠️ Business {business['name']} with place_id {business['place_id']} already exists in enigma_businesses. Skipping.")
         return
+
     name = business["name"]
     city = business.get("city")
     state = business.get("state")
     zip_code = business.get("zip")
     place_id = business.get("place_id")
-    google_places_id = business.get("google_places_id")  # required by Supabase
+    google_places_id = business.get("google_places_id")
 
-    # Step 1: Get Enigma ID
     query = """
     query SearchLocation($searchInput: SearchInput!) {
       search(searchInput: $searchInput) {
@@ -48,6 +47,7 @@ def pull_enigma_data_for_business(business):
       }
     }
     """
+
     variables = {
         "searchInput": {
             "entityType": "OPERATING_LOCATION",
@@ -59,12 +59,16 @@ def pull_enigma_data_for_business(business):
             }
         }
     }
+
     payload = {"query": query, "variables": variables}
     response = requests.post("https://api.enigma.com/graphql", headers=headers, json=payload)
 
     try:
         response.raise_for_status()
         data = response.json()
+
+        print("📄 Raw response body:")
+        print(json.dumps(data, indent=2))
 
         if "errors" in data:
             print(f"⚠️ GraphQL returned errors for {name}, {city}, {state}, {zip_code}:")
@@ -74,12 +78,12 @@ def pull_enigma_data_for_business(business):
         search_results = data.get("data", {}).get("search", [])
         if not search_results:
             print(f"❌ No match found for {name}, {city}, {state}, {zip_code}")
-            print("📤 Sent payload:")
+            print("📄 Sent payload:")
             print(json.dumps(payload, indent=2))
 
     except requests.exceptions.RequestException as e:
         print(f"🚨 Request error for {name}, {city}, {state}, {zip_code}: {e}")
-        print("📤 Sent payload:")
+        print("📄 Sent payload:")
         print(json.dumps(payload, indent=2))
         return
     except json.JSONDecodeError:
@@ -99,7 +103,6 @@ def pull_enigma_data_for_business(business):
     matched_postal_code = loc["addresses"]["edges"][0]["node"].get("zip")
     matched_full_address = loc["addresses"]["edges"][0]["node"].get("fullAddress")
 
-    # Step 2: Pull metrics
     metrics_query = """
     query GetLocationMetrics($searchInput: SearchInput!, $cardTxConditions: ConnectionConditions!) {
       search(searchInput: $searchInput) {
@@ -120,6 +123,7 @@ def pull_enigma_data_for_business(business):
       }
     }
     """
+
     periods = ["3m", "12m", "2023", "2024"]
     quantity_types = [
         "card_revenue_amount",
@@ -130,6 +134,7 @@ def pull_enigma_data_for_business(business):
         "card_revenue_yoy_growth",
         "card_revenue_prior_period_growth"
     ]
+
     variables = {
         "searchInput": {
             "entityType": "OPERATING_LOCATION",
@@ -144,12 +149,12 @@ def pull_enigma_data_for_business(business):
             }
         }
     }
+
     metric_resp = requests.post("https://api.enigma.com/graphql", json={"query": metrics_query, "variables": variables}, headers=headers)
     metric_resp.raise_for_status()
     metric_data = metric_resp.json()
     metrics = metric_data.get("data", {}).get("search", [])[0].get("cardTransactions", {}).get("edges", [])
 
-    # Step 3: Insert business
     business_id = str(uuid.uuid4())
     business_insert = supabase.table("enigma_businesses").insert({
         "id": business_id,
@@ -178,7 +183,6 @@ def pull_enigma_data_for_business(business):
     else:
         print(f"✅ Inserted business {name} with ID {business_id}")
 
-    # Step 4: Insert metrics
     for edge in metrics:
         node = edge.get("node", {})
         metric_insert = supabase.table("enigma_metrics").insert({

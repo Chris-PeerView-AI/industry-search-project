@@ -4,10 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Revamped benchmark_review_ui.py to point to the new PDF creation code">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Updated Enigma pull code for better logging and to ensure that hte checkboxes are used when the user unclicks them for a data pull">
+      <change afterPath="$PROJECT_DIR$/AdHoc_PullEnigmasummary.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/TEST_Engima_GolfCave.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/TEST_EnigmaMetrics_API.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/TEST_Enigma_API.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/pdf_export.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/OLD_pdf_export.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/pull_enigma_data_for_business.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -41,9 +43,13 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.AdHoc_PullEnigmasummary.executor": "Run",
     "Python.Engima_Supabase_Ingest.executor": "Run",
     "Python.TEST_BarkZoom.executor": "Run",
     "Python.TEST_Business_Metrics_Extractor.executor": "Run",
+    "Python.TEST_Engima_GolfCave.executor": "Run",
+    "Python.TEST_EnigmaMetrics_API.executor": "Run",
+    "Python.TEST_Enigma_API.executor": "Run",
     "Python.TEST_pull_enigma_golfcave_clark_details.executor": "Run",
     "Python.generate_project_report.executor": "Run",
     "Python.main_ui.executor": "Run",
@@ -71,8 +77,8 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.generate_project_report">
-    <configuration name="TEST_Business_Metrics_Extractor" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Python.AdHoc_PullEnigmasummary">
+    <configuration name="AdHoc_PullEnigmasummary" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -81,11 +87,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_Business_Metrics_Extractor.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/AdHoc_PullEnigmasummary.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -94,7 +100,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="download_templates" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="TEST_Engima_GolfCave" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -107,7 +113,51 @@
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/download_templates.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_Engima_GolfCave.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TEST_EnigmaMetrics_API" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_EnigmaMetrics_API.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="TEST_Enigma_API" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="industry_search_project" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/TEST_Enigma_API.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -138,57 +188,13 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="test_02_edit_map_slide" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="industry_search_project" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/test_02_edit_map_slide.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="test_03_edit_summary_slide" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
-      <module name="industry_search_project" />
-      <option name="ENV_FILES" value="" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/test_03_edit_summary_slide.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.AdHoc_PullEnigmasummary" />
+        <item itemvalue="Python.TEST_Engima_GolfCave" />
+        <item itemvalue="Python.TEST_EnigmaMetrics_API" />
+        <item itemvalue="Python.TEST_Enigma_API" />
         <item itemvalue="Python.generate_project_report" />
-        <item itemvalue="Python.test_01_download_templates" />
-        <item itemvalue="Python.test_03_edit_summary_slide" />
-        <item itemvalue="Python.test_02_edit_map_slide" />
-        <item itemvalue="Python.TEST_Business_Metrics_Extractor" />
       </list>
     </recent_temporary>
   </component>
@@ -206,14 +212,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00014" summary="Adjusted Map Display details">
-      <option name="closed" value="true" />
-      <created>1753303465412</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1753303465412</updated>
     </task>
     <task id="LOCAL-00015" summary="Adjusted manual review to simplify">
       <option name="closed" value="true" />
@@ -599,11 +597,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754082486534</updated>
     </task>
-    <option name="localTasksCounter" value="63" />
+    <task id="LOCAL-00063" summary="Updated Enigma pull code for better logging and to ensure that hte checkboxes are used when the user unclicks them for a data pull">
+      <option name="closed" value="true" />
+      <created>1754101728719</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1754101728719</updated>
+    </task>
+    <option name="localTasksCounter" value="64" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Growth Rate, Ticket Size and Market Size charts are drafted." />
     <MESSAGE value="REmoving OpenAI from Generate Project Report" />
     <MESSAGE value="Basic set of charts and summary produced. Still need refinement." />
     <MESSAGE value="Made the report creation code more modular." />
@@ -628,6 +633,7 @@
     <MESSAGE value="Deleted OLD Files" />
     <MESSAGE value="Deleted TEST Files" />
     <MESSAGE value="Revamped benchmark_review_ui.py to point to the new PDF creation code" />
-    <option name="LAST_COMMIT_MESSAGE" value="Revamped benchmark_review_ui.py to point to the new PDF creation code" />
+    <MESSAGE value="Updated Enigma pull code for better logging and to ensure that hte checkboxes are used when the user unclicks them for a data pull" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated Enigma pull code for better logging and to ensure that hte checkboxes are used when the user unclicks them for a data pull" />
   </component>
 </project>
