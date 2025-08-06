@@ -26,6 +26,45 @@ project_options = {row["name"]: row["id"] for row in project_data}
 project_name = st.selectbox("Select Project", list(project_options.keys()))
 project_id = project_options[project_name]
 
+# Check output folder
+project_output_dir = f"modules/output/{project_id}"
+existing_files = os.listdir(project_output_dir) if os.path.exists(project_output_dir) else []
+
+if not existing_files:
+    st.info("🔍 Running initial data quality check for new project...")
+
+    # Pull enigma summaries (already done later, but doing it now for setup)
+    summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
+
+    if summaries:
+        avg_ticket = sum([b["ticket_size"] for b in summaries if b.get("ticket_size")]) / max(len(summaries), 1)
+
+
+        def is_low_quality(b):
+            revenue = b.get("annual_revenue")
+            yoy = b.get("yoy_growth")
+            ticket = b.get("ticket_size")
+            lat = b.get("latitude")
+            lng = b.get("longitude")
+
+            return (
+                    revenue is None or revenue < 10_000
+                    or yoy is None or abs(yoy) > 1.0
+                    or ticket is None or ticket < (avg_ticket * 0.3) or ticket > (avg_ticket * 3.0)
+                    or lat is None or lng is None
+            )
+
+
+        low_quality_ids = [b["id"] for b in summaries if is_low_quality(b)]
+
+        if low_quality_ids:
+            for biz_id in low_quality_ids:
+                supabase.table("enigma_summaries").update({"benchmark": "low"}).eq("id", biz_id).execute()
+            st.success(f"🛠️ Marked {len(low_quality_ids)} businesses as 'low' quality.")
+        else:
+            st.success("✅ All businesses passed data quality checks.")
+
+
 if project_id:
     summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
     df = pd.DataFrame(summaries)

@@ -204,9 +204,11 @@ def export_project_pptx(project_id: str, supabase):
     from modules.slides_summary import generate_paginated_business_table_slides
     table_slide_path = os.path.join(appendix_dir, "slide_41_BusinessTable.pptx")
 
+    sorted_trusted = sorted(trusted, key=lambda b: b.get("name", "").lower())
+
     generate_paginated_business_table_slides(
-        output_dir=appendix_dir,
-        businesses=trusted,
+        output_dir=project_output_dir,
+        businesses=sorted_trusted,
         base_title=f"{city}: {industry} Benchmark Businesses"
     )
 

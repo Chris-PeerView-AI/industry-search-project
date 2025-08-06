@@ -4,8 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Replaced single slide business summary table with a multi-page version. Still need to fix, last slide is out of order.">
-      <change beforePath="$PROJECT_DIR$/modules/slides_summary.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_summary.py" afterDir="false" />
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed page ordering for the business table slides.">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -207,14 +209,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00020" summary="Extracting address information cleaner">
-      <option name="closed" value="true" />
-      <created>1753819660378</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1753819660378</updated>
     </task>
     <task id="LOCAL-00021" summary="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few">
       <option name="closed" value="true" />
@@ -600,11 +594,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754503900958</updated>
     </task>
-    <option name="localTasksCounter" value="69" />
+    <task id="LOCAL-00069" summary="Fixed page ordering for the business table slides.">
+      <option name="closed" value="true" />
+      <created>1754504346867</created>
+      <option name="number" value="00069" />
+      <option name="presentableId" value="LOCAL-00069" />
+      <option name="project" value="LOCAL" />
+      <updated>1754504346867</updated>
+    </task>
+    <option name="localTasksCounter" value="70" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Fixed As of Date in Summary OVerview." />
     <MESSAGE value="Fixed other placeholders in the summary overview" />
     <MESSAGE value="Updated summary overview text font size and length." />
     <MESSAGE value="Updated market size chart to represent the upper and lower bound properly." />
@@ -629,6 +630,7 @@
     <MESSAGE value="Made some formatting updates to the exhibits" />
     <MESSAGE value="Replaced individual business exhibits with a table." />
     <MESSAGE value="Replaced single slide business summary table with a multi-page version. Still need to fix, last slide is out of order." />
-    <option name="LAST_COMMIT_MESSAGE" value="Replaced single slide business summary table with a multi-page version. Still need to fix, last slide is out of order." />
+    <MESSAGE value="Fixed page ordering for the business table slides." />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed page ordering for the business table slides." />
   </component>
 </project>
