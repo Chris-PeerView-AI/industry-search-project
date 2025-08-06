@@ -214,52 +214,68 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 
-def generate_business_table_slide(output_path: str, businesses: list, title: str = "Business Comparison Table"):
-    ppt = Presentation("modules/downloaded_businesstable_template.pptx")
-    slide = ppt.slides[0]
+from pptx import Presentation
+from pptx.util import Inches, Pt
 
-    # Replace title text
-    for shape in slide.shapes:
-        if shape.has_text_frame and "{TBD Title}" in shape.text:
-            shape.text_frame.clear()
-            p = shape.text_frame.paragraphs[0]
-            run = p.add_run()
-            run.text = title
-            run.font.size = Pt(24)
-            run.font.bold = True
-            run.font.name = "Montserrat"
+def generate_paginated_business_table_slides(output_dir: str, businesses: list, base_title: str):
+    from math import ceil
 
-    # Add the table
-    rows = len(businesses) + 1
-    cols = 5
-    left = Inches(0.3)
-    top = Inches(1.2)
-    width = Inches(9)
-    height = Inches(0.8)
+    rows_per_slide = 15
+    total_slides = ceil(len(businesses) / rows_per_slide)
 
-    table = slide.shapes.add_table(rows, cols, left, top, width, height).table
+    for i in range(total_slides):
+        batch = businesses[i * rows_per_slide:(i + 1) * rows_per_slide]
+        ppt = Presentation("modules/downloaded_businesstable_template.pptx")
+        slide = ppt.slides[0]
 
-    # Set column widths
-    table.columns[0].width = Inches(2.5)
-    table.columns[1].width = Inches(2.5)
-    table.columns[2].width = Inches(1.5)
-    table.columns[3].width = Inches(1.2)
-    table.columns[4].width = Inches(1.2)
+        # Replace title
+        for shape in slide.shapes:
+            if shape.has_text_frame and "{TBD Title}" in shape.text:
+                shape.text_frame.clear()
+                p = shape.text_frame.paragraphs[0]
+                run = p.add_run()
+                run.text = f"{base_title} (Page {i + 1} of {total_slides})"
+                run.font.size = Pt(24)
+                run.font.bold = True
+                run.font.name = "Montserrat"
 
-    headers = ["Business Name", "Address", "Revenue", "YoY Growth", "Ticket Size"]
-    for i, header in enumerate(headers):
-        cell = table.cell(0, i)
-        cell.text = header
-        paragraph = cell.text_frame.paragraphs[0]
-        paragraph.font.bold = True
-        paragraph.font.size = Pt(12)
+        # Add table
+        rows = len(batch) + 1
+        cols = 5
+        left = Inches(0.3)
+        top = Inches(1.7)
+        width = Inches(8)
+        height = Inches(0.8)
 
-    for r, biz in enumerate(businesses, start=1):
-        table.cell(r, 0).text = biz.get("name", "")
-        table.cell(r, 1).text = biz.get("address", "")
-        table.cell(r, 2).text = f"${biz.get('annual_revenue', 0):,.0f}"
-        table.cell(r, 3).text = f"{biz.get('yoy_growth', 0) * 100:+.1f}%"
-        table.cell(r, 4).text = f"${biz.get('ticket_size', 0):,.0f}"
+        table = slide.shapes.add_table(rows, cols, left, top, width, height).table
+        table.columns[0].width = Inches(2.0)
+        table.columns[1].width = Inches(2.0)
+        table.columns[2].width = Inches(1.5)
+        table.columns[3].width = Inches(1.0)
+        table.columns[4].width = Inches(1.0)
 
-    ppt.save(output_path)
-    print(f"✅ Saved table slide to: {output_path}")
+        headers = ["Business Name", "Address", "Revenue", "YoY Growth", "Ticket Size"]
+        for c, header in enumerate(headers):
+            cell = table.cell(0, c)
+            cell.text = header
+            p = cell.text_frame.paragraphs[0]
+            p.font.bold = True
+            p.font.size = Pt(9)
+
+        for r, biz in enumerate(batch, start=1):
+            cells = [
+                biz.get("name", ""),
+                biz.get("address", ""),
+                f"${biz.get('annual_revenue', 0):,.0f}",
+                f"{biz.get('yoy_growth', 0) * 100:+.1f}%",
+                f"${biz.get('ticket_size', 0):,.0f}",
+            ]
+            for c, text in enumerate(cells):
+                cell = table.cell(r, c)
+                cell.text = text
+                for p in cell.text_frame.paragraphs:
+                    p.font.size = Pt(9)
+
+        slide_path = os.path.join(output_dir, f"slide_41_BusinessTable_{i + 1}.pptx")
+        ppt.save(slide_path)
+        print(f"✅ Saved: {slide_path}")

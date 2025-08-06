@@ -14,7 +14,7 @@ from modules.slides_exhibit import (
     generate_market_size_chart,
     generate_map_chart
 )
-from modules.slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end
+from modules.slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end, generate_paginated_business_table_slides
 from modules.convert_slides_to_pdf import convert_and_merge_slides
 from pptx import Presentation
 
@@ -201,13 +201,13 @@ def export_project_pptx(project_id: str, supabase):
             b["tier_reason"] = tier_lookup[sid]
 
     # Generate new business table slide
-    from modules.slides_summary import generate_business_table_slide
+    from modules.slides_summary import generate_paginated_business_table_slides
     table_slide_path = os.path.join(appendix_dir, "slide_41_BusinessTable.pptx")
 
-    generate_business_table_slide(
-        output_path=table_slide_path,
+    generate_paginated_business_table_slides(
+        output_dir=appendix_dir,
         businesses=trusted,
-        title=f"{city}: {industry} Benchmark Businesses"
+        base_title=f"{city}: {industry} Benchmark Businesses"
     )
 
     print(f"✅ Business summary table slide generated and added to appendix.")

@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Made some formatting updates to the exhibits">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Replaced individual business exhibits with a table.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/download_templates.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/download_templates.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/slides_summary.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_summary.py" afterDir="false" />
     </list>
@@ -210,14 +209,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00018" summary="Fixed lost main_ui.py code">
-      <option name="closed" value="true" />
-      <created>1753817735643</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1753817735643</updated>
     </task>
     <task id="LOCAL-00019" summary="Moved from wrong supabase table projects to search_projects">
       <option name="closed" value="true" />
@@ -603,11 +594,18 @@
       <option name="project" value="LOCAL" />
       <updated>1754497961100</updated>
     </task>
-    <option name="localTasksCounter" value="67" />
+    <task id="LOCAL-00067" summary="Replaced individual business exhibits with a table.">
+      <option name="closed" value="true" />
+      <created>1754499453376</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1754499453376</updated>
+    </task>
+    <option name="localTasksCounter" value="68" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Produce a combined PDF at the end of the process" />
     <MESSAGE value="Adjusted exhibit slides" />
     <MESSAGE value="Fixed As of Date in Summary OVerview." />
     <MESSAGE value="Fixed other placeholders in the summary overview" />
@@ -632,6 +630,7 @@
     <MESSAGE value="Enigma API is now working again." />
     <MESSAGE value="Updated pull_enigma_ui.py to also do the enigma_summary table and the overall benchmark summary." />
     <MESSAGE value="Made some formatting updates to the exhibits" />
-    <option name="LAST_COMMIT_MESSAGE" value="Made some formatting updates to the exhibits" />
+    <MESSAGE value="Replaced individual business exhibits with a table." />
+    <option name="LAST_COMMIT_MESSAGE" value="Replaced individual business exhibits with a table." />
   </component>
 </project>
