@@ -10,6 +10,24 @@ import os
 EXHIBIT_TEMPLATE = "modules/downloaded_exhibit_template.pptx"
 
 
+
+def apply_peerview_style():
+    plt.style.use("ggplot")
+    plt.rcParams.update({
+        "font.family": "Montserrat",
+        "axes.facecolor": "#f9f9f9",
+        "figure.facecolor": "#ffffff",
+        "axes.edgecolor": "#eeeeee",
+        "axes.titleweight": "bold",
+        "axes.titlesize": 16,
+        "axes.labelcolor": "#333333",
+        "xtick.color": "#333333",
+        "ytick.color": "#333333",
+        "axes.grid": True,
+        "grid.color": "#dddddd",
+    })
+
+
 def generate_chart_slide(chart_title, image_path, summary_text):
     ppt = Presentation(EXHIBIT_TEMPLATE)
     slide = ppt.slides[0]
@@ -39,6 +57,7 @@ def generate_chart_slide(chart_title, image_path, summary_text):
 
 
 def generate_revenue_chart(path, summaries):
+    apply_peerview_style()
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     trusted = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
     names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
@@ -61,6 +80,7 @@ def generate_revenue_chart(path, summaries):
 
 
 def generate_yoy_chart(path, summaries):
+    apply_peerview_style()
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("yoy_growth") is not None]
     trusted = sorted(trusted, key=lambda x: x["yoy_growth"], reverse=True)
     names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
@@ -68,7 +88,8 @@ def generate_yoy_chart(path, summaries):
     avg = sum(values) / len(values)
     median = sorted(values)[len(values) // 2]
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.bar(names, values, color=["green" if v >= 0 else "red" for v in values])
+    colors = ["green" if v >= 0 else "red" for v in values]
+    bars = ax.bar(names, values, color=colors)
     ax.axhline(avg, color='blue', linestyle='--', label=f"Mean: {avg:.1f}%")
     ax.axhline(median, color='purple', linestyle=':', label=f"Median: {median:.1f}%")
     ax.set_title("YoY Growth")
@@ -76,6 +97,10 @@ def generate_yoy_chart(path, summaries):
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha="right")
     ax.legend()
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f"{height:.1f}%", xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 5), textcoords="offset points", ha='center', fontsize=8, weight='bold')
     plt.tight_layout()
     plt.savefig(path)
     plt.close()
@@ -83,6 +108,7 @@ def generate_yoy_chart(path, summaries):
 
 
 def generate_ticket_chart(path, summaries):
+    apply_peerview_style()
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("ticket_size") is not None]
     trusted = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
     names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
@@ -90,7 +116,7 @@ def generate_ticket_chart(path, summaries):
     mean_val = sum(values) / len(values)
     median_val = sorted(values)[len(values) // 2]
     fig, ax = plt.subplots(figsize=(10, 4))
-    ax.bar(names, values, color="#4CAF50")
+    bars = ax.bar(names, values, color="#4CAF50")
     ax.axhline(mean_val, color='blue', linestyle='--', label=f"Mean: ${mean_val:.0f}")
     ax.axhline(median_val, color='purple', linestyle=':', label=f"Median: ${median_val:.0f}")
     ax.set_title("Ticket Size")
@@ -98,6 +124,10 @@ def generate_ticket_chart(path, summaries):
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha="right")
     ax.legend()
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f"${height:.0f}", xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 5), textcoords="offset points", ha='center', fontsize=8, weight='bold')
     plt.tight_layout()
     plt.savefig(path)
     plt.close()
@@ -105,6 +135,7 @@ def generate_ticket_chart(path, summaries):
 
 
 def generate_market_size_chart(path, summaries):
+    apply_peerview_style()
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("annual_revenue") is not None]
     trusted_total = sum(b["annual_revenue"] for b in trusted)
     projected_total = trusted_total * 1.5
@@ -114,6 +145,10 @@ def generate_market_size_chart(path, summaries):
     bars[1].set_hatch("//")
     ax.set_title("Estimated Market Size")
     ax.set_ylabel("Revenue ($M)")
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f"${height:.1f}M", xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 5), textcoords="offset points", ha='center', fontsize=8, weight='bold')
     plt.tight_layout()
     plt.savefig(path)
     plt.close()

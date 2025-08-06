@@ -136,11 +136,12 @@ def generate_individual_business_slide(output_path, business: dict, end_date: st
     }
 
     summary_text = (
-        f"This business had estimated revenue of ${business.get('annual_revenue', 0):,.0f}, with an average ticket size of ${business.get('ticket_size', 0):,.0f} "
-        f"and year-over-year growth of {business.get('yoy_growth', 0)*100:.1f}%."
+        f"{business.get('name')} reported approximately ${business.get('annual_revenue', 0):,.0f} in annual revenue "
+        f"as of {end_date}. The average ticket size was ${business.get('ticket_size', 0):,.0f}, and year-over-year revenue "
+        f"{'increased' if business.get('yoy_growth', 0) >= 0 else 'declined'} by {abs(business.get('yoy_growth', 0) * 100):.1f}%."
     )
     if business.get("tier_reason"):
-        summary_text += f" Reason for inclusion: {business['tier_reason'].strip()}"
+        summary_text += f" This business was included due to its: {business['tier_reason'].strip()}."
 
     for shape in slide.shapes:
         if not shape.has_text_frame:
