@@ -276,6 +276,7 @@ def generate_paginated_business_table_slides(output_dir: str, businesses: list, 
                 for p in cell.text_frame.paragraphs:
                     p.font.size = Pt(9)
 
-        slide_path = os.path.join(output_dir, f"slide_41_BusinessTable_{i + 1}.pptx")
+        slide_number = 41 + i  # 41, 42, 43, ...
+        slide_path = os.path.join(output_dir, f"slide_{slide_number:02}_BusinessTable.pptx")
         ppt.save(slide_path)
         print(f"✅ Saved: {slide_path}")
