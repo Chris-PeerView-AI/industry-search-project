@@ -182,27 +182,35 @@ def export_project_pptx(project_id: str, supabase):
     # Appendix Slides
     print("📎 Starting appendix slide generation...")
     appendix_dir = os.path.join(project_output_dir)
+    os.makedirs(appendix_dir, exist_ok=True)
+
+    # Gather tier reasons
     trusted_ids = [b["id"] for b in trusted]
     summaries_by_id = {b["id"]: b for b in summaries}
     search_ids = [b["search_result_id"] for b in trusted if b.get("search_result_id")]
     print(f"🔍 Trusted businesses with search_results_id: {len(search_ids)}")
+
     search_rows = supabase.table("search_results").select("id, tier_reason").in_("id", search_ids).execute().data
     tier_lookup = {r["id"]: r["tier_reason"] for r in search_rows}
     print(f"📝 Retrieved {len(tier_lookup)} tier_reason entries")
 
-    from modules.slides_summary import generate_individual_business_slide
+    # Add tier_reason to each business
+    for b in trusted:
+        sid = b.get("search_result_id")
+        if sid and sid in tier_lookup:
+            b["tier_reason"] = tier_lookup[sid]
 
-    appendix_count = 0
-    for i, biz in enumerate(trusted):
-        sid = biz.get("search_result_id")
-        if not sid or sid not in tier_lookup:
-            continue
-        biz["tier_reason"] = tier_lookup[sid]
-        appendix_path = os.path.join(appendix_dir, f"slide_41_{i + 1}_IndividualBusiness.pptx")
-        generate_individual_business_slide(appendix_path, biz, end_date, industry, city)
-        appendix_count += 1
+    # Generate new business table slide
+    from modules.slides_summary import generate_business_table_slide
+    table_slide_path = os.path.join(appendix_dir, "slide_41_BusinessTable.pptx")
 
-    print(f"✅ Total appendix slides generated: {appendix_count}")
+    generate_business_table_slide(
+        output_path=table_slide_path,
+        businesses=trusted,
+        title=f"{city}: {industry} Benchmark Businesses"
+    )
+
+    print(f"✅ Business summary table slide generated and added to appendix.")
 
     # Disclosures (Slide 999+)
     copy_template_slides(DISCLOSURES_TEMPLATE, os.path.join(project_output_dir, "slide_999_disclosures"), 0)

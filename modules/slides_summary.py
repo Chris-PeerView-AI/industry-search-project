@@ -209,3 +209,57 @@ def get_latest_period_end(supabase: object, project_id: str) -> str:
     if resp.data:
         return datetime.strptime(resp.data[0]["period_end_date"], "%Y-%m-%d").strftime("%B %Y")
     return datetime.now().strftime("%B %Y")
+
+from pptx import Presentation
+from pptx.util import Inches, Pt
+from pptx.dml.color import RGBColor
+
+def generate_business_table_slide(output_path: str, businesses: list, title: str = "Business Comparison Table"):
+    ppt = Presentation("modules/downloaded_businesstable_template.pptx")
+    slide = ppt.slides[0]
+
+    # Replace title text
+    for shape in slide.shapes:
+        if shape.has_text_frame and "{TBD Title}" in shape.text:
+            shape.text_frame.clear()
+            p = shape.text_frame.paragraphs[0]
+            run = p.add_run()
+            run.text = title
+            run.font.size = Pt(24)
+            run.font.bold = True
+            run.font.name = "Montserrat"
+
+    # Add the table
+    rows = len(businesses) + 1
+    cols = 5
+    left = Inches(0.3)
+    top = Inches(1.2)
+    width = Inches(9)
+    height = Inches(0.8)
+
+    table = slide.shapes.add_table(rows, cols, left, top, width, height).table
+
+    # Set column widths
+    table.columns[0].width = Inches(2.5)
+    table.columns[1].width = Inches(2.5)
+    table.columns[2].width = Inches(1.5)
+    table.columns[3].width = Inches(1.2)
+    table.columns[4].width = Inches(1.2)
+
+    headers = ["Business Name", "Address", "Revenue", "YoY Growth", "Ticket Size"]
+    for i, header in enumerate(headers):
+        cell = table.cell(0, i)
+        cell.text = header
+        paragraph = cell.text_frame.paragraphs[0]
+        paragraph.font.bold = True
+        paragraph.font.size = Pt(12)
+
+    for r, biz in enumerate(businesses, start=1):
+        table.cell(r, 0).text = biz.get("name", "")
+        table.cell(r, 1).text = biz.get("address", "")
+        table.cell(r, 2).text = f"${biz.get('annual_revenue', 0):,.0f}"
+        table.cell(r, 3).text = f"{biz.get('yoy_growth', 0) * 100:+.1f}%"
+        table.cell(r, 4).text = f"${biz.get('ticket_size', 0):,.0f}"
+
+    ppt.save(output_path)
+    print(f"✅ Saved table slide to: {output_path}")
