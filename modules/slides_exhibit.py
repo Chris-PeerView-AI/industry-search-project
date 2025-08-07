@@ -57,26 +57,65 @@ def generate_chart_slide(chart_title, image_path, summary_text):
 
 
 def generate_revenue_chart(path, summaries):
+    import matplotlib.font_manager as fm
+
     apply_peerview_style()
+
+    # Use Montserrat font globally
+    plt.rcParams['font.family'] = 'Montserrat'
+
+    # Sort trusted businesses by revenue
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     trusted = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
+
+    # Extract names and values
     names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
     values = [b["annual_revenue"] for b in trusted]
+    values_millions = [v / 1_000_000 for v in values]
+
     mean_val = sum(values) / len(values)
     median_val = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 4))
-    ax.bar(names, [v / 1_000_000 for v in values], color="#4CAF50")
-    ax.axhline(mean_val / 1_000_000, color='blue', linestyle='--', label=f"Mean: ${mean_val / 1_000_000:.1f}M")
-    ax.axhline(median_val / 1_000_000, color='purple', linestyle=':', label=f"Median: ${median_val / 1_000_000:.1f}M")
-    ax.set_title("Annual Revenue")
-    ax.set_ylabel("Revenue ($M)")
+
+    # Highlight colors: gold, silver, bronze for top 3, then soft green
+    colors = ["#D4AF37", "#C0C0C0", "#CD7F32"] + ["#A2D5AB"] * (len(values) - 3)
+
+    fig, ax = plt.subplots(figsize=(12, 5.5))
+
+    # Aesthetic improvements
+    fig.patch.set_facecolor("#F8F8F8")       # Chart canvas background
+    ax.set_facecolor("#FFFFFF")              # Plot area background
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color("#CCCCCC")
+    ax.spines['bottom'].set_color("#CCCCCC")
+
+    bars = ax.bar(names, values_millions, color=colors, width=0.6)
+
+    # Annotate all bars with values
+    for bar, val in zip(bars, values_millions):
+        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.1, f"${val:.1f}M",
+                ha='center', va='bottom', fontsize=8, rotation=90)
+
+    # Add mean and median lines
+    ax.axhline(mean_val / 1_000_000, color='#4682B4', linestyle='--', linewidth=1,
+               label=f"Mean: ${mean_val / 1_000_000:.1f}M")
+    ax.axhline(median_val / 1_000_000, color='#9370DB', linestyle=':', linewidth=1,
+               label=f"Median: ${median_val / 1_000_000:.1f}M")
+
+    ax.set_title("Annual Revenue", fontsize=16, fontweight='bold', color="#333333")
+    ax.set_ylabel("Revenue ($M)", fontsize=11, color="#333333")
     ax.set_xticks(range(len(names)))
-    ax.set_xticklabels(names, rotation=45, ha="right")
+    ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
+    ax.tick_params(axis='y', labelsize=9, colors="#333333")
+    ax.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
     ax.legend()
+
     plt.tight_layout()
     plt.savefig(path)
     plt.close()
     return True
+
+
 
 
 def generate_yoy_chart(path, summaries):
