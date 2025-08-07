@@ -55,6 +55,7 @@ def generate_chart_slide(chart_title, image_path, summary_text):
     slide.shapes.add_picture(image_path, left, top, width=width, height=height)
     return ppt
 
+
 def generate_revenue_chart(path, summaries, end_date: str):
     import matplotlib.font_manager as fm
 
@@ -67,8 +68,17 @@ def generate_revenue_chart(path, summaries, end_date: str):
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     trusted = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
 
-    # Extract names and values
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
+    # Extract names and values with disambiguation for duplicates
+    seen_names = {}
+    def disambiguate(name):
+        base = name[:20]
+        if base in seen_names:
+            seen_names[base] += 1
+            return f"{base[:17]}…{seen_names[base]}"
+        seen_names[base] = 1
+        return base if len(name) <= 20 else base[:19] + "…1"
+
+    names = [disambiguate(b["name"]) for b in trusted]
     values = [b["annual_revenue"] for b in trusted]
     values_millions = [v / 1_000_000 for v in values]
 
@@ -88,8 +98,14 @@ def generate_revenue_chart(path, summaries, end_date: str):
     ax.set_facecolor("#FFFFFF")              # Plot area background
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_color("#CCCCCC")
-    ax.spines['bottom'].set_color("#CCCCCC")
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+
+    # Add a border around chart area manually
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(1)
+        spine.set_edgecolor("#CCCCCC")
 
     bars = ax.bar(names, values_millions, color=colors, width=0.6)
 
@@ -113,22 +129,24 @@ def generate_revenue_chart(path, summaries, end_date: str):
                 ha='center', fontsize=9)
 
     chart_title = "Annual Revenue"
-    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333")
+    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333", pad=20)
     if subtitle:
-        ax.text(0.5, 1.08, subtitle, transform=ax.transAxes,
+        ax.text(0.5, 1.03, subtitle, transform=ax.transAxes,
                 fontsize=10, color="#555555", ha='center')
 
     ax.set_ylabel("Revenue ($M)", fontsize=11, color="#333333")
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
     ax.tick_params(axis='y', labelsize=9, colors="#333333")
-    ax.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
+    ax.grid(False)  # Disable grid lines completely
     ax.legend(loc='upper right', frameon=False)
 
     plt.tight_layout()
     plt.savefig(path)
     plt.close()
     return True
+
+
 
 
 
