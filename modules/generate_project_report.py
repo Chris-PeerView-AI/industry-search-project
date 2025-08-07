@@ -137,7 +137,8 @@ def export_project_pptx(project_id: str, supabase):
     med_yoy = sorted(b["yoy_growth"] for b in sorted_yoy)[len(sorted_yoy) // 2]
     summary_yoy = f"Top growth: {top_yoy}. Declines: {bottom_yoy}. Avg: {avg_yoy * 100:.1f}%, Median: {med_yoy * 100:.1f}%."
     slide_summaries["yoy"] = summary_yoy
-    save_slide(YOY_SLIDE_TITLE, generate_yoy_chart, "slide_22_yoy_growth.pptx", summaries, summary_yoy)
+    save_slide(YOY_SLIDE_TITLE, lambda path, summaries: generate_yoy_chart(path, summaries, end_date), "slide_22_yoy.pptx", summaries, summary_yoy)
+
 
     # Ticket Size
     sorted_ticket = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)

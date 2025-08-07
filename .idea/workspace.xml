@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Added As Of Date to Revenue Chart and upgraded looks">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Completed Revenue Chart Styling">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/slides_exhibit.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_exhibit.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -208,14 +209,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00025" summary="Enigma data is pulled and stored in Supabase">
-      <option name="closed" value="true" />
-      <created>1753897643959</created>
-      <option name="number" value="00025" />
-      <option name="presentableId" value="LOCAL-00025" />
-      <option name="project" value="LOCAL" />
-      <updated>1753897643959</updated>
     </task>
     <task id="LOCAL-00026" summary="Test for Summary stats works">
       <option name="closed" value="true" />
@@ -601,7 +594,15 @@
       <option name="project" value="LOCAL" />
       <updated>1754578515859</updated>
     </task>
-    <option name="localTasksCounter" value="74" />
+    <task id="LOCAL-00074" summary="Completed Revenue Chart Styling">
+      <option name="closed" value="true" />
+      <created>1754579424180</created>
+      <option name="number" value="00074" />
+      <option name="presentableId" value="LOCAL-00074" />
+      <option name="project" value="LOCAL" />
+      <updated>1754579424180</updated>
+    </task>
+    <option name="localTasksCounter" value="75" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -616,7 +617,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Added Map Exhibit and fixed zoom" />
     <MESSAGE value="Fixed map chart placement." />
     <MESSAGE value="Individual Business slides created (but not populated right yet)." />
     <MESSAGE value="Added interim admin slides. Need ot fix formatting" />
@@ -641,6 +641,7 @@
     <MESSAGE value="Data Quality button" />
     <MESSAGE value="Updated revenue slide for better look" />
     <MESSAGE value="Added As Of Date to Revenue Chart and upgraded looks" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added As Of Date to Revenue Chart and upgraded looks" />
+    <MESSAGE value="Completed Revenue Chart Styling" />
+    <option name="LAST_COMMIT_MESSAGE" value="Completed Revenue Chart Styling" />
   </component>
 </project>

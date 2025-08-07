@@ -153,32 +153,76 @@ def generate_revenue_chart(path, summaries, end_date: str):
 
 
 
-def generate_yoy_chart(path, summaries):
+def generate_yoy_chart(path, summaries, end_date: str):
+    import matplotlib.font_manager as fm
+
     apply_peerview_style()
+    plt.rcParams['font.family'] = 'Montserrat'
+
+    # Filter and sort
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("yoy_growth") is not None]
     trusted = sorted(trusted, key=lambda x: x["yoy_growth"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["yoy_growth"] * 100 for b in trusted]
+
+    # Disambiguate duplicate names
+    seen_names = {}
+    def disambiguate(name):
+        base = name[:20]
+        if base in seen_names:
+            seen_names[base] += 1
+            return f"{base[:17]}…{seen_names[base]}"
+        seen_names[base] = 1
+        return base if len(name) <= 20 else base[:19] + "…1"
+
+    names = [disambiguate(b["name"]) for b in trusted]
+    values = [round(b["yoy_growth"] * 100) for b in trusted]  # round to nearest percent
+
     avg = sum(values) / len(values)
     median = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 4))
-    colors = ["green" if v >= 0 else "red" for v in values]
-    bars = ax.bar(names, values, color=colors)
-    ax.axhline(avg, color='blue', linestyle='--', label=f"Mean: {avg:.1f}%")
-    ax.axhline(median, color='purple', linestyle=':', label=f"Median: {median:.1f}%")
-    ax.set_title("YoY Growth")
-    ax.set_ylabel("Growth (%)")
+
+    # Colors: green for growth, red for decline
+    colors = ["#4CAF50" if v >= 0 else "#E57373" for v in values]
+
+    fig, ax = plt.subplots(figsize=(12, 5.5))
+    fig.patch.set_facecolor("#F8F8F8")
+    ax.set_facecolor("#FFFFFF")
+
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(1)
+        spine.set_edgecolor("#CCCCCC")
+
+    bars = ax.bar(names, values, color=colors, width=0.6)
+
+    for bar, val in zip(bars, values):
+        offset = 1.0 if abs(val) < 10 else 0.5
+        ax.text(bar.get_x() + bar.get_width() / 2, val + (offset if val >= 0 else -offset), f"{val:.0f}%",
+                ha='center', va='bottom' if val >= 0 else 'top', fontsize=8, weight='bold')
+
+    ax.axhline(avg, color='#4682B4', linestyle='--', linewidth=1, label=f"Mean: {avg:.1f}%")
+    ax.axhline(median, color='#9370DB', linestyle=':', linewidth=1, label=f"Median: {median:.1f}%")
+    ax.axhline(0, color='#CCCCCC', linewidth=0.5)  # subtle zero line
+
+    chart_title = "Year over Year Revenue Growth"
+    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333", pad=28)
+    if end_date:
+        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes,
+                fontsize=10, color="#555555", ha='center')
+
+    ax.set_ylabel("Growth (%)", fontsize=11, color="#333333")
     ax.set_xticks(range(len(names)))
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    for bar in bars:
-        height = bar.get_height()
-        ax.annotate(f"{height:.1f}%", xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 5), textcoords="offset points", ha='center', fontsize=8, weight='bold')
+    ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
+    ax.tick_params(axis='x', labelsize=9, colors="#333333")  # X-axis back on
+    ax.tick_params(axis='y', labelsize=9, colors="#333333")
+    ax.grid(False)
+    ax.legend(loc='upper right', frameon=False)
+
     plt.tight_layout()
     plt.savefig(path)
     plt.close()
     return True
+
+
+
 
 
 def generate_ticket_chart(path, summaries):
