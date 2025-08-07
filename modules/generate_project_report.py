@@ -126,7 +126,8 @@ def export_project_pptx(project_id: str, supabase):
     cluster_text = "tightly clustered" if range_rev < 0.2 * avg_rev else "widely spread"
     summary_revenue = f"Top: {top_rev}. Mean: ${avg_rev:,.0f}, Median: ${med_rev:,.0f}. Distribution: {cluster_text}."
     slide_summaries["revenue"] = summary_revenue
-    save_slide(REVENUE_SLIDE_TITLE, generate_revenue_chart, "slide_21_revenue.pptx", summaries, summary_revenue)
+    save_slide(REVENUE_SLIDE_TITLE, lambda path, summaries: generate_revenue_chart(path, summaries, end_date), "slide_21_revenue.pptx", summaries, summary_revenue)
+
 
     # YoY Growth
     sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"], reverse=True)

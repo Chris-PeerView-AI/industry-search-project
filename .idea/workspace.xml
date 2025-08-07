@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Data Quality button">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Updated revenue slide for better look">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/slides_exhibit.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_exhibit.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -209,14 +208,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
-    </task>
-    <task id="LOCAL-00023" summary="One big circle in Map Review">
-      <option name="closed" value="true" />
-      <created>1753821546410</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
-      <option name="project" value="LOCAL" />
-      <updated>1753821546410</updated>
     </task>
     <task id="LOCAL-00024" summary="One big circle in Map Review">
       <option name="closed" value="true" />
@@ -602,7 +593,15 @@
       <option name="project" value="LOCAL" />
       <updated>1754510864972</updated>
     </task>
-    <option name="localTasksCounter" value="72" />
+    <task id="LOCAL-00072" summary="Updated revenue slide for better look">
+      <option name="closed" value="true" />
+      <created>1754577597649</created>
+      <option name="number" value="00072" />
+      <option name="presentableId" value="LOCAL-00072" />
+      <option name="project" value="LOCAL" />
+      <updated>1754577597649</updated>
+    </task>
+    <option name="localTasksCounter" value="73" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -617,7 +616,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Updated market size chart to represent the upper and lower bound properly." />
     <MESSAGE value="Updated City and Industry Info" />
     <MESSAGE value="Added Map Exhibit and fixed zoom" />
     <MESSAGE value="Fixed map chart placement." />
@@ -642,6 +640,7 @@
     <MESSAGE value="Fixed page ordering for the business table slides." />
     <MESSAGE value="Automated data quality checks when new project is opened" />
     <MESSAGE value="Data Quality button" />
-    <option name="LAST_COMMIT_MESSAGE" value="Data Quality button" />
+    <MESSAGE value="Updated revenue slide for better look" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated revenue slide for better look" />
   </component>
 </project>

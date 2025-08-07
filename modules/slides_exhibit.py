@@ -55,8 +55,7 @@ def generate_chart_slide(chart_title, image_path, summary_text):
     slide.shapes.add_picture(image_path, left, top, width=width, height=height)
     return ppt
 
-
-def generate_revenue_chart(path, summaries):
+def generate_revenue_chart(path, summaries, end_date: str):
     import matplotlib.font_manager as fm
 
     apply_peerview_style()
@@ -76,6 +75,9 @@ def generate_revenue_chart(path, summaries):
     mean_val = sum(values) / len(values)
     median_val = sorted(values)[len(values) // 2]
 
+    # Title subtitle
+    subtitle = f"As of {end_date}" if end_date else ""
+
     # Highlight colors: gold, silver, bronze for top 3, then soft green
     colors = ["#D4AF37", "#C0C0C0", "#CD7F32"] + ["#A2D5AB"] * (len(values) - 3)
 
@@ -93,7 +95,7 @@ def generate_revenue_chart(path, summaries):
 
     # Annotate all bars with values
     for bar, val in zip(bars, values_millions):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.1, f"${val:.1f}M",
+        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.15, f"${val:.1f}M",
                 ha='center', va='bottom', fontsize=8, rotation=90)
 
     # Add mean and median lines
@@ -102,18 +104,33 @@ def generate_revenue_chart(path, summaries):
     ax.axhline(median_val / 1_000_000, color='#9370DB', linestyle=':', linewidth=1,
                label=f"Median: ${median_val / 1_000_000:.1f}M")
 
-    ax.set_title("Annual Revenue", fontsize=16, fontweight='bold', color="#333333")
+    # Add top performer callout
+    top_bar = bars[0]
+    ax.annotate("Top Performer",
+                xy=(top_bar.get_x() + top_bar.get_width() / 2, top_bar.get_height()),
+                xytext=(top_bar.get_x() + 0.5, top_bar.get_height() + 1.0),
+                arrowprops=dict(arrowstyle='->', lw=0.8),
+                ha='center', fontsize=9)
+
+    chart_title = "Annual Revenue"
+    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333")
+    if subtitle:
+        ax.text(0.5, 1.08, subtitle, transform=ax.transAxes,
+                fontsize=10, color="#555555", ha='center')
+
     ax.set_ylabel("Revenue ($M)", fontsize=11, color="#333333")
     ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
     ax.tick_params(axis='y', labelsize=9, colors="#333333")
     ax.grid(axis='y', linestyle='--', linewidth=0.5, alpha=0.5)
-    ax.legend()
+    ax.legend(loc='upper right', frameon=False)
 
     plt.tight_layout()
     plt.savefig(path)
     plt.close()
     return True
+
+
 
 
 
