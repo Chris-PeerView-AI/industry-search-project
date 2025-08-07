@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Data Quality button">
+    <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Fixed page ordering for the business table slides.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -36,35 +37,35 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;Python.AdHoc_PullEnigmasummary.executor&quot;: &quot;Run&quot;,
-    &quot;Python.Engima_Supabase_Ingest.executor&quot;: &quot;Run&quot;,
-    &quot;Python.TEST_BarkZoom.executor&quot;: &quot;Run&quot;,
-    &quot;Python.TEST_Business_Metrics_Extractor.executor&quot;: &quot;Run&quot;,
-    &quot;Python.TEST_Engima_GolfCave.executor&quot;: &quot;Run&quot;,
-    &quot;Python.TEST_EnigmaMetrics_API.executor&quot;: &quot;Run&quot;,
-    &quot;Python.TEST_Enigma_API.executor&quot;: &quot;Run&quot;,
-    &quot;Python.TEST_pull_enigma_golfcave_clark_details.executor&quot;: &quot;Run&quot;,
-    &quot;Python.generate_project_report.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main_ui.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_business_details.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_golfcave_clark_details.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_location_by_address.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_location_by_zip_and_match.executor&quot;: &quot;Run&quot;,
-    &quot;Python.pull_enigma_ui.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_01_download_template.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_02_edit_map_slide.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_03_edit_summary_slide.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_enigma_brand_search.executor&quot;: &quot;Run&quot;,
-    &quot;Python.test_enigma_search.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/christopherjohnson/Desktop/PeerView AI/industry_search_project/modules&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.AdHoc_PullEnigmasummary.executor": "Run",
+    "Python.Engima_Supabase_Ingest.executor": "Run",
+    "Python.TEST_BarkZoom.executor": "Run",
+    "Python.TEST_Business_Metrics_Extractor.executor": "Run",
+    "Python.TEST_Engima_GolfCave.executor": "Run",
+    "Python.TEST_EnigmaMetrics_API.executor": "Run",
+    "Python.TEST_Enigma_API.executor": "Run",
+    "Python.TEST_pull_enigma_golfcave_clark_details.executor": "Run",
+    "Python.generate_project_report.executor": "Run",
+    "Python.main_ui.executor": "Run",
+    "Python.pull_enigma_business_details.executor": "Run",
+    "Python.pull_enigma_golfcave_clark_details.executor": "Run",
+    "Python.pull_enigma_location_by_address.executor": "Run",
+    "Python.pull_enigma_location_by_zip_and_match.executor": "Run",
+    "Python.pull_enigma_ui.executor": "Run",
+    "Python.test_01_download_template.executor": "Run",
+    "Python.test_02_edit_map_slide.executor": "Run",
+    "Python.test_03_edit_summary_slide.executor": "Run",
+    "Python.test_enigma_brand_search.executor": "Run",
+    "Python.test_enigma_search.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/christopherjohnson/Desktop/PeerView AI/industry_search_project/modules"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/modules" />
@@ -208,6 +209,22 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1753213169588</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few">
+      <option name="closed" value="true" />
+      <created>1753819929050</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1753819929050</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Fixed spiral pattern, but bug still exists where it gives me all the circles even though I only got my results from the first few">
+      <option name="closed" value="true" />
+      <created>1753820312533</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1753820312533</updated>
     </task>
     <task id="LOCAL-00023" summary="One big circle in Map Review">
       <option name="closed" value="true" />
@@ -585,26 +602,12 @@
       <option name="project" value="LOCAL" />
       <updated>1754504346867</updated>
     </task>
-    <task id="LOCAL-00070" summary="Automated data quality checks when new project is opened">
-      <option name="closed" value="true" />
-      <created>1754510398837</created>
-      <option name="number" value="00070" />
-      <option name="presentableId" value="LOCAL-00070" />
-      <option name="project" value="LOCAL" />
-      <updated>1754510398837</updated>
-    </task>
-    <task id="LOCAL-00071" summary="Data Quality button">
-      <option name="closed" value="true" />
-      <created>1754510864972</created>
-      <option name="number" value="00071" />
-      <option name="presentableId" value="LOCAL-00071" />
-      <option name="project" value="LOCAL" />
-      <updated>1754510864972</updated>
-    </task>
-    <option name="localTasksCounter" value="72" />
+    <option name="localTasksCounter" value="70" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
+    <MESSAGE value="Fixed other placeholders in the summary overview" />
+    <MESSAGE value="Updated summary overview text font size and length." />
     <MESSAGE value="Updated market size chart to represent the upper and lower bound properly." />
     <MESSAGE value="Updated City and Industry Info" />
     <MESSAGE value="Added Map Exhibit and fixed zoom" />
@@ -628,8 +631,6 @@
     <MESSAGE value="Replaced individual business exhibits with a table." />
     <MESSAGE value="Replaced single slide business summary table with a multi-page version. Still need to fix, last slide is out of order." />
     <MESSAGE value="Fixed page ordering for the business table slides." />
-    <MESSAGE value="Automated data quality checks when new project is opened" />
-    <MESSAGE value="Data Quality button" />
-    <option name="LAST_COMMIT_MESSAGE" value="Data Quality button" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed page ordering for the business table slides." />
   </component>
 </project>
