@@ -225,48 +225,124 @@ def generate_yoy_chart(path, summaries, end_date: str):
 
 
 
-def generate_ticket_chart(path, summaries):
+def generate_ticket_chart(path, summaries, end_date: str):
+    import matplotlib.font_manager as fm
+
     apply_peerview_style()
+    plt.rcParams['font.family'] = 'Montserrat'
+
+    # Filter and sort
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("ticket_size") is not None]
     trusted = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
-    names = [b["name"][:20] + ("..." if len(b["name"]) > 20 else "") for b in trusted]
-    values = [b["ticket_size"] for b in trusted]
+
+    # Disambiguate duplicate names
+    seen_names = {}
+    def disambiguate(name):
+        base = name[:20]
+        if base in seen_names:
+            seen_names[base] += 1
+            return f"{base[:17]}…{seen_names[base]}"
+        seen_names[base] = 1
+        return base if len(name) <= 20 else base[:19] + "…1"
+
+    names = [disambiguate(b["name"]) for b in trusted]
+    values = [round(b["ticket_size"]) for b in trusted]
+
     mean_val = sum(values) / len(values)
     median_val = sorted(values)[len(values) // 2]
-    fig, ax = plt.subplots(figsize=(10, 4))
-    bars = ax.bar(names, values, color="#4CAF50")
-    ax.axhline(mean_val, color='blue', linestyle='--', label=f"Mean: ${mean_val:.0f}")
-    ax.axhline(median_val, color='purple', linestyle=':', label=f"Median: ${median_val:.0f}")
-    ax.set_title("Ticket Size")
-    ax.set_ylabel("Dollars ($)")
+
+    fig, ax = plt.subplots(figsize=(12, 5.5))
+    fig.patch.set_facecolor("#F8F8F8")
+    ax.set_facecolor("#FFFFFF")
+
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(1)
+        spine.set_edgecolor("#CCCCCC")
+
+    bars = ax.bar(names, values, color="#4CAF50", width=0.6)
+
+    for bar, val in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.5, f"${val}",
+                ha='center', va='bottom', fontsize=8, weight='bold')
+
+    ax.axhline(mean_val, color='#4682B4', linestyle='--', linewidth=1, label=f"Mean: ${mean_val:.0f}")
+    ax.axhline(median_val, color='#9370DB', linestyle=':', linewidth=1, label=f"Median: ${median_val:.0f}")
+    ax.axhline(0, color='#CCCCCC', linewidth=0.5)  # baseline
+
+    chart_title = "Average Ticket Size"
+    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333", pad=28)
+    if end_date:
+        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes,
+                fontsize=10, color="#555555", ha='center')
+
+    ax.set_ylabel("Dollars ($)", fontsize=11, color="#333333")
     ax.set_xticks(range(len(names)))
-    ax.set_xticklabels(names, rotation=45, ha="right")
-    ax.legend()
-    for bar in bars:
-        height = bar.get_height()
-        ax.annotate(f"${height:.0f}", xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 5), textcoords="offset points", ha='center', fontsize=8, weight='bold')
+    ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
+    ax.tick_params(axis='x', labelsize=9, colors="#333333")
+    ax.tick_params(axis='y', labelsize=9, colors="#333333")
+    ax.grid(False)
+    ax.legend(loc='upper right', frameon=False)
+
     plt.tight_layout()
     plt.savefig(path)
     plt.close()
     return True
 
 
-def generate_market_size_chart(path, summaries):
+
+def generate_market_size_chart(path, summaries, end_date: str):
+    import matplotlib.font_manager as fm
+
     apply_peerview_style()
+    plt.rcParams['font.family'] = 'Montserrat'
+
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("annual_revenue") is not None]
+    untrusted = [b for b in summaries if b.get("benchmark") == "low" and b.get("annual_revenue") is not None]
+
     trusted_total = sum(b["annual_revenue"] for b in trusted)
-    projected_total = trusted_total * 1.5
-    fig, ax = plt.subplots(figsize=(6, 4))
-    bars = ax.bar(["Lower Bound", "Upper Bound"], [trusted_total / 1_000_000, projected_total / 1_000_000],
-                  color=["#4CAF50", "#C0C0C0"], edgecolor="black")
+    num_trusted = len(trusted)
+    num_untrusted = len(untrusted)
+    projected_total = trusted_total * (num_trusted + num_untrusted) / max(num_trusted, 1)
+
+    lower_millions = trusted_total / 1_000_000
+    upper_millions = projected_total / 1_000_000
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    fig.patch.set_facecolor("#F8F8F8")
+    ax.set_facecolor("#FFFFFF")
+
+    bars = ax.bar(["Verified Revenue", "Projected Total"], [lower_millions, upper_millions],
+                  color=["#4CAF50", "#C0C0C0"], edgecolor="black", width=0.5)
     bars[1].set_hatch("//")
-    ax.set_title("Estimated Market Size")
-    ax.set_ylabel("Revenue ($M)")
-    for bar in bars:
-        height = bar.get_height()
-        ax.annotate(f"${height:.1f}M", xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 5), textcoords="offset points", ha='center', fontsize=8, weight='bold')
+
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(1)
+        spine.set_edgecolor("#CCCCCC")
+
+    for bar, val in zip(bars, [lower_millions, upper_millions]):
+        ax.text(bar.get_x() + bar.get_width() / 2, val + 1, f"${val:.1f}M",
+                ha='center', va='bottom', fontsize=9, weight='bold')
+
+    # Annotate business counts
+    ax.text(0, lower_millions + 3, f"{num_trusted} businesses", ha='center', fontsize=8, color="#333333")
+    ax.text(1, upper_millions + 3, f"{num_trusted + num_untrusted} total (incl. {num_untrusted} projected)",
+            ha='center', fontsize=8, color="#333333")
+
+    # Grid and labels
+    ax.axhline(0, color='#CCCCCC', linewidth=0.5)
+    ax.set_ylabel("Revenue ($M)", fontsize=11, color="#333333")
+    ax.set_title("Estimated Market Revenue Potential", fontsize=16, fontweight='bold', color="#333333", pad=28)
+    if end_date:
+        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes,
+                fontsize=10, color="#555555", ha='center')
+
+    ax.set_xticks([0, 1])
+    ax.set_xticklabels(["Verified Revenue", "Projected Total"], fontsize=9, color="#333333")
+    ax.tick_params(axis='y', labelsize=9, colors="#333333")
+    ax.grid(False)
+
     plt.tight_layout()
     plt.savefig(path)
     plt.close()

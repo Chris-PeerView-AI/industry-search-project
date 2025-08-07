@@ -147,7 +147,13 @@ def export_project_pptx(project_id: str, supabase):
     med_ticket = sorted(b["ticket_size"] for b in sorted_ticket)[len(sorted_ticket) // 2]
     summary_ticket = f"Top prices: {top_ticket}. Mean: ${avg_ticket:,.0f}, Median: ${med_ticket:,.0f}."
     slide_summaries["ticket"] = summary_ticket
-    save_slide(TICKET_SLIDE_TITLE, generate_ticket_chart, "slide_23_ticket_size.pptx", summaries, summary_ticket)
+    save_slide(
+        TICKET_SLIDE_TITLE,
+        lambda path, summaries: generate_ticket_chart(path, summaries, end_date),
+        "slide_23_ticket.pptx",
+        summaries,
+        summary_ticket
+    )
 
     # Market Size
     trusted_total = sum(b["annual_revenue"] for b in trusted)
@@ -155,7 +161,13 @@ def export_project_pptx(project_id: str, supabase):
     from modules.slides_summary import get_market_size_analysis
     summary_market = get_market_size_analysis()
     slide_summaries["market"] = summary_market
-    save_slide(MARKET_SLIDE_TITLE, generate_market_size_chart, "slide_24_market_size.pptx", summaries, summary_market)
+    save_slide(
+        MARKET_SLIDE_TITLE,
+        lambda path, summaries: generate_market_size_chart(path, summaries, end_date),
+        "slide_24_market_size.pptx",
+        summaries,
+        summary_market
+    )
 
     # Map
     summary_map = f"Map of benchmark businesses around {city}, including trusted (green) and untrusted (gray) businesses."
