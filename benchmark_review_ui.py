@@ -8,6 +8,8 @@ from modules.OLD_pdf_export import export_project_pdf
 from modules.pdf_only_export import generate_final_pdf
 from modules.generate_project_report import export_project_pptx
 from modules.pdf_only_export import generate_final_pdf, get_project_meta
+from modules.slides_admin import generate_title_slide
+from geopy.distance import geodesic
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -17,6 +19,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 st.set_page_config(page_title="Benchmark Review Tool", layout="wide")
 st.title("📊 Benchmark Review & Report Prep")
 
+# -------------- Project Picker --------------
 active_only = st.checkbox("Show Active Projects Only", value=True)
 project_list_res = supabase.table("search_projects").select("id, name").order("created_at", desc=True).execute()
 project_data = project_list_res.data
@@ -26,19 +29,25 @@ project_options = {row["name"]: row["id"] for row in project_data}
 project_name = st.selectbox("Select Project", list(project_options.keys()))
 project_id = project_options[project_name]
 
-# Check output folder
+# Ensure project output dir exists
 project_output_dir = f"modules/output/{project_id}"
-existing_files = os.listdir(project_output_dir) if os.path.exists(project_output_dir) else []
+os.makedirs(project_output_dir, exist_ok=True)
 
-if not existing_files:
+# -------------- One-time Data Quality Check --------------
+# Streamlit reruns the script frequently; guard with both a file marker and session_state
+DQ_MARKER = os.path.join(project_output_dir, ".dq_done")
+if "dq_checked" not in st.session_state:
+    st.session_state["dq_checked"] = {}
+
+should_run_dq = (not os.path.exists(DQ_MARKER)) and (not st.session_state["dq_checked"].get(project_id))
+
+if should_run_dq:
     st.info("🔍 Running initial data quality check for new project...")
-
-    # Pull enigma summaries (already done later, but doing it now for setup)
     summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
 
     if summaries:
-        avg_ticket = sum([b["ticket_size"] for b in summaries if b.get("ticket_size")]) / max(len(summaries), 1)
-
+        valid_tickets = [b.get("ticket_size") for b in summaries if isinstance(b.get("ticket_size"), (int, float))]
+        avg_ticket = (sum(valid_tickets) / len(valid_tickets)) if valid_tickets else 0.0
 
         def is_low_quality(b):
             revenue = b.get("annual_revenue")
@@ -46,25 +55,45 @@ if not existing_files:
             ticket = b.get("ticket_size")
             lat = b.get("latitude")
             lng = b.get("longitude")
-
+            ticket_low = (ticket is None) or (avg_ticket > 0 and (ticket < 0.3 * avg_ticket or ticket > 3.0 * avg_ticket))
             return (
-                    revenue is None or revenue < 10_000
-                    or yoy is None or abs(yoy) > 1.0
-                    or ticket is None or ticket < (avg_ticket * 0.3) or ticket > (avg_ticket * 3.0)
-                    or lat is None or lng is None
+                revenue is None or revenue < 50_000
+                or yoy is None or abs(yoy) > 1.0
+                or ticket_low
+                or lat is None or lng is None
             )
 
-
-        low_quality_ids = [b["id"] for b in summaries if is_low_quality(b)]
-
-        if low_quality_ids:
-            for biz_id in low_quality_ids:
+        # Only update rows that actually change
+        to_low = [b["id"] for b in summaries if is_low_quality(b) and b.get("benchmark") != "low"]
+        if to_low:
+            for biz_id in to_low:
                 supabase.table("enigma_summaries").update({"benchmark": "low"}).eq("id", biz_id).execute()
-            st.success(f"🛠️ Marked {len(low_quality_ids)} businesses as 'low' quality.")
+            st.success(f"🛠️ Marked {len(to_low)} businesses as 'low' quality.")
         else:
-            st.success("✅ All businesses passed data quality checks.")
+            st.success("✅ All businesses passed data quality checks or were already labeled.")
 
+        # Write marker and session flag
+        with open(DQ_MARKER, "w") as f:
+            f.write("done\n")
+        st.session_state["dq_checked"][project_id] = True
+        st.rerun()
+    else:
+        st.info("ℹ️ No summaries found yet; skipping data quality check.")
+        with open(DQ_MARKER, "w") as f:
+            f.write("skipped-no-data\n")
+        st.session_state["dq_checked"][project_id] = True
+        st.rerun()
+else:
+    # Optional button to re-run DQ if needed
+    cols = st.columns([1,1,6])
+    with cols[0]:
+        if st.button("♻️ Re-run Data Quality"):
+            if os.path.exists(DQ_MARKER):
+                os.remove(DQ_MARKER)
+            st.session_state["dq_checked"][project_id] = False
+            st.rerun()
 
+# -------------- Main Panel --------------
 if project_id:
     summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
     df = pd.DataFrame(summaries)
@@ -133,26 +162,36 @@ if project_id:
                 """)
 
         st.markdown("---")
-        if st.radio("Include in Benchmark?", ["trusted", "low"], index=0 if row['benchmark'] == 'trusted' else 1, key=row['id']) != row['benchmark']:
-            new_val = st.radio("Confirm Update:", ["trusted", "low"], horizontal=True, key=f"confirm_{row['id']}")
+        # Inline control to flip benchmark flag for the selected business
+        current_benchmark = row['benchmark'] if isinstance(row.get('benchmark'), str) else 'trusted'
+        choice = st.radio(
+            "Include in Benchmark?",
+            ["trusted", "low"],
+            index=0 if current_benchmark == 'trusted' else 1,
+            key=f"bench_{row['id']}"
+        )
+        if choice != current_benchmark:
             if st.button("✅ Save Benchmark Flag"):
-                supabase.table("enigma_summaries").update({"benchmark": new_val}).eq("id", row["id"]).execute()
-                st.success(f"Updated benchmark status to '{new_val}'")
+                supabase.table("enigma_summaries").update({"benchmark": choice}).eq("id", row["id"]).execute()
+                st.success(f"Updated benchmark status to '{choice}'")
                 st.rerun()
 
+        # --- Map Preview (Streamlit only; independent of PPT screenshot) ---
         import folium
         from streamlit_folium import st_folium
-        from geopy.distance import geodesic
 
         center_lat, center_lng = row["latitude"], row["longitude"]
         m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
 
         all_biz_res = supabase.table("enigma_summaries").select("latitude, longitude").eq("project_id", project_id).execute()
         all_biz = pd.DataFrame(all_biz_res.data)
-        farthest_km = max(
-            geodesic((center_lat, center_lng), (lat, lng)).km
-            for lat, lng in zip(all_biz["latitude"], all_biz["longitude"]) if pd.notnull(lat) and pd.notnull(lng)
-        )
+        try:
+            farthest_km = max(
+                geodesic((center_lat, center_lng), (lat, lng)).km
+                for lat, lng in zip(all_biz["latitude"], all_biz["longitude"]) if pd.notnull(lat) and pd.notnull(lng)
+            )
+        except ValueError:
+            farthest_km = 1.0
 
         folium.Circle(
             location=[center_lat, center_lng],
@@ -165,14 +204,15 @@ if project_id:
         ).add_to(m)
 
         for _, biz in df.iterrows():
-            color = "gray" if biz["benchmark"] != "trusted" else "green"
+            color = "gray" if biz.get("benchmark") != "trusted" else "green"
             if biz["id"] == row["id"]:
                 color = "yellow"
-            folium.Marker(
-                location=[biz["latitude"], biz["longitude"]],
-                popup=biz["name"],
-                icon=folium.Icon(color=color)
-            ).add_to(m)
+            if pd.notnull(biz.get("latitude")) and pd.notnull(biz.get("longitude")):
+                folium.Marker(
+                    location=[biz["latitude"], biz["longitude"]],
+                    popup=biz.get("name", ""),
+                    icon=folium.Icon(color=color)
+                ).add_to(m)
 
         st_folium(m, width=800, height=500)
 

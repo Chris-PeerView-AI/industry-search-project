@@ -5,7 +5,6 @@ import shutil
 from datetime import datetime
 from dotenv import load_dotenv
 from supabase import create_client, Client
-from modules.slides_admin import generate_title_slide_if_needed
 from modules.slides_exhibit import (
     generate_chart_slide,
     generate_revenue_chart,
@@ -15,6 +14,7 @@ from modules.slides_exhibit import (
     generate_map_chart
 )
 from modules.slides_summary import generate_summary_slide, generate_llama_summary, get_latest_period_end, generate_paginated_business_table_slides
+from modules.slides_admin import generate_title_slide
 from modules.convert_slides_to_pdf import convert_and_merge_slides
 from pptx import Presentation
 
@@ -82,23 +82,13 @@ def export_project_pptx(project_id: str, supabase):
     city = project_meta.get("location", "City")
 
     # Title Slide
-    now_str = datetime.now().strftime("%B %Y")
-    title_path = os.path.join(project_output_dir, "slide_1_title.pptx")
-    ppt = Presentation(TITLE_TEMPLATE)
-    slide = ppt.slides[0]
-    for shape in slide.shapes:
-        if not shape.has_text_frame:
-            continue
-        text = shape.text_frame.text
-        text = text.replace("{TBD INDUSTRY}", industry)
-        text = text.replace("{TBD LOCATION}", city)
-        text = text.replace("{TBD DATE}", now_str)
-        from pptx.enum.text import PP_ALIGN
-        shape.text_frame.text = text
-        for paragraph in shape.text_frame.paragraphs:
-            paragraph.alignment = PP_ALIGN.CENTER
-    ppt.save(title_path)
-    print(f"✅ Saved title slide to: {title_path}")
+    title_path = generate_title_slide(
+        project_output_dir=project_output_dir,
+        template_path=TITLE_TEMPLATE,
+        city=city,
+        industry=industry,
+        # subtitle="Custom benchmark and market intelligence using trusted third‑party data.",  # optional
+    )
 
     # Intro Slides (Slide 10+)
     copy_template_slides(INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_10_intro"), 0)
