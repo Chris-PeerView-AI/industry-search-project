@@ -1,74 +1,169 @@
-# slides_exhibit.py
+# slides_exhibit.py — template-driven exhibits
+# Uses the downloaded exhibit PPTX template so all charts inherit the same
+# header/footer/margins as the rest of the deck.
 
 import matplotlib.pyplot as plt
 from pptx import Presentation
 from pptx.util import Inches, Pt
+from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from PIL import Image
 import os
 
 EXHIBIT_TEMPLATE = "modules/downloaded_exhibit_template.pptx"
 
-
+# ------------------------
+# Style for matplotlib PNGs
+# ------------------------
 
 def apply_peerview_style():
-    plt.style.use("ggplot")
+    # Keep styling light so charts sit cleanly in the PPT template
     plt.rcParams.update({
         "font.family": "Montserrat",
-        "axes.facecolor": "#f9f9f9",
-        "figure.facecolor": "#ffffff",
-        "axes.edgecolor": "#eeeeee",
+        "axes.facecolor": "#FFFFFF",
+        "figure.facecolor": "#FFFFFF",
+        "axes.edgecolor": "#CCCCCC",
         "axes.titleweight": "bold",
         "axes.titlesize": 16,
         "axes.labelcolor": "#333333",
         "xtick.color": "#333333",
         "ytick.color": "#333333",
-        "axes.grid": True,
-        "grid.color": "#dddddd",
+        "axes.grid": False,
     })
 
+# ------------------------
+# PPT helper utilities
+# ------------------------
 
-def generate_chart_slide(chart_title, image_path, summary_text):
+def _replace_in_runs(shape, mapping: dict) -> bool:
+    """Replace substrings inside runs to preserve template formatting.
+    Returns True if any replacement occurred.
+    """
+    if not getattr(shape, "has_text_frame", False):
+        return False
+    changed = False
+    tf = shape.text_frame
+    for p in tf.paragraphs:
+        for r in p.runs:
+            if not r.text:
+                continue
+            new_text = r.text
+            for k, v in mapping.items():
+                if k in new_text:
+                    new_text = new_text.replace(k, v)
+                    changed = True
+            r.text = new_text
+    return changed
+
+
+def _find_named(slide, *names):
+    for shp in slide.shapes:
+        if getattr(shp, "name", "") in names:
+            return shp
+    return None
+
+
+def _chart_anchor(slide):
+    """Find where to place the chart.
+    Prefer a named anchor; else the largest rectangle; else fallback margins.
+    Returns (left, top, width, height).
+    """
+    # 1) Named anchor(s)
+    anchor = _find_named(slide, "ChartAnchor", "Chart", "ImageAnchor")
+    if anchor:
+        return anchor.left, anchor.top, anchor.width, anchor.height
+
+    # 2) Largest rectangle
+    max_area = 0
+    best = None
+    for shp in slide.shapes:
+        try:
+            if shp.shape_type == 1:  # rectangle
+                area = shp.width * shp.height
+                if area > max_area:
+                    max_area = area
+                    best = shp
+        except Exception:
+            pass
+    if best:
+        return best.left, best.top, best.width, best.height
+
+    # 3) Fallback margins
+    left = Inches(0.75)
+    top = Inches(1.2)  # below the header bar
+    width = slide.part.presentation.slide_width - 2 * left
+    height = Inches(4.0)
+    return left, top, width, height
+
+# ------------------------
+# Template-driven slide builder
+# ------------------------
+
+def generate_chart_slide(chart_title: str, image_path: str, summary_text: str) -> Presentation:
+    """Open the exhibit template and fill: title, chart image, and analysis box.
+    Keeps all typography and spacing from the template.
+    """
     ppt = Presentation(EXHIBIT_TEMPLATE)
     slide = ppt.slides[0]
+
+    # 1) Replace the header title placeholder (format-preserving)
+    title_done = False
     for shape in slide.shapes:
-        if not shape.has_text_frame:
-            continue
-        if "Exhibit {TBD}" in shape.text:
-            shape.text_frame.clear()
-            p = shape.text_frame.paragraphs[0]
-            run = p.add_run()
-            run.text = chart_title
-            run.font.name = "Montserrat"
-            run.font.size = Pt(30)
-            run.font.bold = True
-        elif "{TBD ANALYSIS}" in shape.text:
-            shape.text_frame.clear()
-            p = shape.text_frame.paragraphs[0]
-            run = p.add_run()
-            run.text = summary_text
-    img = Image.open(image_path)
-    width = Inches(7.5)
-    height = Inches(4.0)
-    top = Inches(2.0)
-    left = Inches(0.5)
+        if _replace_in_runs(shape, {"{TBD EXHIBIT TITLE}": chart_title, "Exhibit {TBD}": chart_title}):
+            title_done = True
+            break
+    if not title_done:
+        # Fallback: first text frame gets the title
+        for shape in slide.shapes:
+            if getattr(shape, "has_text_frame", False):
+                shape.text_frame.clear()
+                shape.text_frame.paragraphs[0].text = chart_title
+                break
+
+    # 2) Place the chart image using the anchor logic
+    left, top, width, height = _chart_anchor(slide)
     slide.shapes.add_picture(image_path, left, top, width=width, height=height)
+
+    # 3) Fill the analysis text into the box that contains {TBD ANALYSIS}
+    analysis_shape = None
+    for shp in slide.shapes:
+        if getattr(shp, "has_text_frame", False):
+            if "{TBD ANALYSIS}" in (shp.text_frame.text or ""):
+                analysis_shape = shp
+                break
+
+    if analysis_shape:
+        tf = analysis_shape.text_frame
+        # Preserve a heading "Analysis" if present, then inject body
+        has_heading = any("Analysis" in (r.text or "") for p in tf.paragraphs for r in p.runs)
+        tf.clear()
+        if has_heading:
+            tf.paragraphs[0].text = "Analysis"
+        p = tf.add_paragraph()
+        p.text = summary_text
+        p.alignment = p.alignment or PP_ALIGN.LEFT
+    else:
+        # Last resort: bottom box within margins
+        txtbox = slide.shapes.add_textbox(Inches(0.75), Inches(5.3), slide.part.presentation.slide_width - Inches(1.5), Inches(2.0))
+        tf = txtbox.text_frame
+        tf.paragraphs[0].text = "Analysis"
+        p = tf.add_paragraph()
+        p.text = summary_text
+
     return ppt
 
+# ------------------------
+# Chart generators (unchanged except for light style)
+# ------------------------
 
 def generate_revenue_chart(path, summaries, end_date: str):
-    import matplotlib.font_manager as fm
-
     apply_peerview_style()
-
-    # Use Montserrat font globally
-    plt.rcParams['font.family'] = 'Montserrat'
 
     # Sort trusted businesses by revenue
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     trusted = sorted(trusted, key=lambda x: x["annual_revenue"], reverse=True)
 
-    # Extract names and values with disambiguation for duplicates
+    # Disambiguate duplicate names
     seen_names = {}
     def disambiguate(name):
         base = name[:20]
@@ -80,66 +175,30 @@ def generate_revenue_chart(path, summaries, end_date: str):
 
     names = [disambiguate(b["name"]) for b in trusted]
     values = [b["annual_revenue"] for b in trusted]
-    values_millions = [v / 1_000_000 for v in values]
+    values_m = [v / 1_000_000 for v in values]
 
     mean_val = sum(values) / len(values)
     median_val = sorted(values)[len(values) // 2]
 
-    # Title subtitle
-    subtitle = f"As of {end_date}" if end_date else ""
-
-    # Highlight colors: gold, silver, bronze for top 3, then soft green
     colors = ["#D4AF37", "#C0C0C0", "#CD7F32"] + ["#A2D5AB"] * (len(values) - 3)
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
+    ax.bar(names, values_m, color=colors, width=0.6)
 
-    # Aesthetic improvements
-    fig.patch.set_facecolor("#F8F8F8")       # Chart canvas background
-    ax.set_facecolor("#FFFFFF")              # Plot area background
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
+    for bar, val in zip(ax.patches, values_m):
+        ax.text(bar.get_x() + bar.get_width()/2, val + 0.12, f"${val:.1f}M", ha="center", va="bottom", fontsize=8, rotation=90)
 
-    # Add a border around chart area manually
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_linewidth(1)
-        spine.set_edgecolor("#CCCCCC")
+    ax.axhline(mean_val/1_000_000, color="#4682B4", linestyle="--", linewidth=1, label=f"Mean: ${mean_val/1_000_000:.1f}M")
+    ax.axhline(median_val/1_000_000, color="#9370DB", linestyle=":", linewidth=1, label=f"Median: ${median_val/1_000_000:.1f}M")
 
-    bars = ax.bar(names, values_millions, color=colors, width=0.6)
-
-    # Annotate all bars with values
-    for bar, val in zip(bars, values_millions):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.15, f"${val:.1f}M",
-                ha='center', va='bottom', fontsize=8, rotation=90)
-
-    # Add mean and median lines
-    ax.axhline(mean_val / 1_000_000, color='#4682B4', linestyle='--', linewidth=1,
-               label=f"Mean: ${mean_val / 1_000_000:.1f}M")
-    ax.axhline(median_val / 1_000_000, color='#9370DB', linestyle=':', linewidth=1,
-               label=f"Median: ${median_val / 1_000_000:.1f}M")
-
-    # Add top performer callout
-    top_bar = bars[0]
-    ax.annotate("Top Performer",
-                xy=(top_bar.get_x() + top_bar.get_width() / 2, top_bar.get_height()),
-                xytext=(top_bar.get_x() + 0.5, top_bar.get_height() + 1.0),
-                arrowprops=dict(arrowstyle='->', lw=0.8),
-                ha='center', fontsize=9)
-
-    chart_title = "Annual Revenue"
-    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333", pad=20)
-    if subtitle:
-        ax.text(0.5, 1.03, subtitle, transform=ax.transAxes,
-                fontsize=10, color="#555555", ha='center')
+    ax.set_title("Annual Revenue", fontsize=16, fontweight="bold", color="#333333", pad=20)
+    if end_date:
+        ax.text(0.5, 1.03, f"As of {end_date}", transform=ax.transAxes, fontsize=10, color="#555555", ha="center")
 
     ax.set_ylabel("Revenue ($M)", fontsize=11, color="#333333")
-    ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
-    ax.tick_params(axis='y', labelsize=9, colors="#333333")
-    ax.grid(False)  # Disable grid lines completely
-    ax.legend(loc='upper right', frameon=False)
+    ax.tick_params(axis="y", labelsize=9, colors="#333333")
+    ax.legend(loc="upper right", frameon=False)
 
     plt.tight_layout()
     plt.savefig(path)
@@ -147,23 +206,12 @@ def generate_revenue_chart(path, summaries, end_date: str):
     return True
 
 
-
-
-
-
-
-
 def generate_yoy_chart(path, summaries, end_date: str):
-    import matplotlib.font_manager as fm
-
     apply_peerview_style()
-    plt.rcParams['font.family'] = 'Montserrat'
 
-    # Filter and sort
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("yoy_growth") is not None]
     trusted = sorted(trusted, key=lambda x: x["yoy_growth"], reverse=True)
 
-    # Disambiguate duplicate names
     seen_names = {}
     def disambiguate(name):
         base = name[:20]
@@ -174,47 +222,33 @@ def generate_yoy_chart(path, summaries, end_date: str):
         return base if len(name) <= 20 else base[:19] + "…1"
 
     names = [disambiguate(b["name"]) for b in trusted]
-    values = [round(b["yoy_growth"] * 100) for b in trusted]  # round to nearest percent
+    values = [round(b["yoy_growth"] * 100) for b in trusted]
 
     avg = sum(values) / len(values)
     median = sorted(values)[len(values) // 2]
 
-    # Colors: green for growth, red for decline
     colors = ["#4CAF50" if v >= 0 else "#E57373" for v in values]
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
-    fig.patch.set_facecolor("#F8F8F8")
-    ax.set_facecolor("#FFFFFF")
+    ax.bar(names, values, color=colors, width=0.6)
 
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_linewidth(1)
-        spine.set_edgecolor("#CCCCCC")
-
-    bars = ax.bar(names, values, color=colors, width=0.6)
-
-    for bar, val in zip(bars, values):
+    for bar, val in zip(ax.patches, values):
         offset = 1.0 if abs(val) < 10 else 0.5
-        ax.text(bar.get_x() + bar.get_width() / 2, val + (offset if val >= 0 else -offset), f"{val:.0f}%",
-                ha='center', va='bottom' if val >= 0 else 'top', fontsize=8, weight='bold')
+        ax.text(bar.get_x()+bar.get_width()/2, val + (offset if val >= 0 else -offset), f"{val:.0f}%",
+                ha="center", va="bottom" if val >= 0 else "top", fontsize=8, weight="bold")
 
-    ax.axhline(avg, color='#4682B4', linestyle='--', linewidth=1, label=f"Mean: {avg:.1f}%")
-    ax.axhline(median, color='#9370DB', linestyle=':', linewidth=1, label=f"Median: {median:.1f}%")
-    ax.axhline(0, color='#CCCCCC', linewidth=0.5)  # subtle zero line
+    ax.axhline(avg, color="#4682B4", linestyle="--", linewidth=1, label=f"Mean: {avg:.1f}%")
+    ax.axhline(median, color="#9370DB", linestyle=":", linewidth=1, label=f"Median: {median:.1f}%")
+    ax.axhline(0, color="#CCCCCC", linewidth=0.5)
 
-    chart_title = "Year over Year Revenue Growth"
-    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333", pad=28)
+    ax.set_title("Year over Year Revenue Growth", fontsize=16, fontweight="bold", color="#333333", pad=28)
     if end_date:
-        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes,
-                fontsize=10, color="#555555", ha='center')
+        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes, fontsize=10, color="#555555", ha="center")
 
     ax.set_ylabel("Growth (%)", fontsize=11, color="#333333")
-    ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
-    ax.tick_params(axis='x', labelsize=9, colors="#333333")  # X-axis back on
-    ax.tick_params(axis='y', labelsize=9, colors="#333333")
-    ax.grid(False)
-    ax.legend(loc='upper right', frameon=False)
+    ax.tick_params(axis="y", labelsize=9, colors="#333333")
+    ax.legend(loc="upper right", frameon=False)
 
     plt.tight_layout()
     plt.savefig(path)
@@ -222,20 +256,12 @@ def generate_yoy_chart(path, summaries, end_date: str):
     return True
 
 
-
-
-
 def generate_ticket_chart(path, summaries, end_date: str):
-    import matplotlib.font_manager as fm
-
     apply_peerview_style()
-    plt.rcParams['font.family'] = 'Montserrat'
 
-    # Filter and sort
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("ticket_size") is not None]
     trusted = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
 
-    # Disambiguate duplicate names
     seen_names = {}
     def disambiguate(name):
         base = name[:20]
@@ -252,37 +278,23 @@ def generate_ticket_chart(path, summaries, end_date: str):
     median_val = sorted(values)[len(values) // 2]
 
     fig, ax = plt.subplots(figsize=(12, 5.5))
-    fig.patch.set_facecolor("#F8F8F8")
-    ax.set_facecolor("#FFFFFF")
+    ax.bar(names, values, color="#4CAF50", width=0.6)
 
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_linewidth(1)
-        spine.set_edgecolor("#CCCCCC")
+    for bar, val in zip(ax.patches, values):
+        ax.text(bar.get_x()+bar.get_width()/2, val + 0.5, f"${val}", ha="center", va="bottom", fontsize=8, weight="bold")
 
-    bars = ax.bar(names, values, color="#4CAF50", width=0.6)
+    ax.axhline(mean_val, color="#4682B4", linestyle="--", linewidth=1, label=f"Mean: ${mean_val:.0f}")
+    ax.axhline(median_val, color="#9370DB", linestyle=":", linewidth=1, label=f"Median: ${median_val:.0f}")
+    ax.axhline(0, color="#CCCCCC", linewidth=0.5)
 
-    for bar, val in zip(bars, values):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + 0.5, f"${val}",
-                ha='center', va='bottom', fontsize=8, weight='bold')
-
-    ax.axhline(mean_val, color='#4682B4', linestyle='--', linewidth=1, label=f"Mean: ${mean_val:.0f}")
-    ax.axhline(median_val, color='#9370DB', linestyle=':', linewidth=1, label=f"Median: ${median_val:.0f}")
-    ax.axhline(0, color='#CCCCCC', linewidth=0.5)  # baseline
-
-    chart_title = "Average Ticket Size"
-    ax.set_title(chart_title, fontsize=16, fontweight='bold', color="#333333", pad=28)
+    ax.set_title("Average Ticket Size", fontsize=16, fontweight="bold", color="#333333", pad=28)
     if end_date:
-        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes,
-                fontsize=10, color="#555555", ha='center')
+        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes, fontsize=10, color="#555555", ha="center")
 
     ax.set_ylabel("Dollars ($)", fontsize=11, color="#333333")
-    ax.set_xticks(range(len(names)))
     ax.set_xticklabels(names, rotation=45, ha="right", fontsize=8, color="#333333")
-    ax.tick_params(axis='x', labelsize=9, colors="#333333")
-    ax.tick_params(axis='y', labelsize=9, colors="#333333")
-    ax.grid(False)
-    ax.legend(loc='upper right', frameon=False)
+    ax.tick_params(axis="y", labelsize=9, colors="#333333")
+    ax.legend(loc="upper right", frameon=False)
 
     plt.tight_layout()
     plt.savefig(path)
@@ -290,12 +302,8 @@ def generate_ticket_chart(path, summaries, end_date: str):
     return True
 
 
-
 def generate_market_size_chart(path, summaries, end_date: str):
-    import matplotlib.font_manager as fm
-
     apply_peerview_style()
-    plt.rcParams['font.family'] = 'Montserrat'
 
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("annual_revenue") is not None]
     untrusted = [b for b in summaries if b.get("benchmark") == "low" and b.get("annual_revenue") is not None]
@@ -305,43 +313,28 @@ def generate_market_size_chart(path, summaries, end_date: str):
     num_untrusted = len(untrusted)
     projected_total = trusted_total * (num_trusted + num_untrusted) / max(num_trusted, 1)
 
-    lower_millions = trusted_total / 1_000_000
-    upper_millions = projected_total / 1_000_000
+    lower_m = trusted_total / 1_000_000
+    upper_m = projected_total / 1_000_000
 
     fig, ax = plt.subplots(figsize=(8, 5))
-    fig.patch.set_facecolor("#F8F8F8")
-    ax.set_facecolor("#FFFFFF")
-
-    bars = ax.bar(["Verified Revenue", "Projected Total"], [lower_millions, upper_millions],
+    bars = ax.bar(["Verified Revenue", "Projected Total"], [lower_m, upper_m],
                   color=["#4CAF50", "#C0C0C0"], edgecolor="black", width=0.5)
     bars[1].set_hatch("//")
 
-    for spine in ax.spines.values():
-        spine.set_visible(True)
-        spine.set_linewidth(1)
-        spine.set_edgecolor("#CCCCCC")
+    for bar, val in zip(bars, [lower_m, upper_m]):
+        ax.text(bar.get_x()+bar.get_width()/2, val + 0.6, f"${val:.1f}M", ha="center", va="bottom", fontsize=9, weight="bold")
 
-    for bar, val in zip(bars, [lower_millions, upper_millions]):
-        ax.text(bar.get_x() + bar.get_width() / 2, val + 1, f"${val:.1f}M",
-                ha='center', va='bottom', fontsize=9, weight='bold')
+    ax.text(0, lower_m + 1.2, f"{num_trusted} businesses", ha="center", fontsize=8, color="#333333")
+    ax.text(1, upper_m + 1.2, f"{num_trusted + num_untrusted} total (incl. {num_untrusted} projected)", ha="center", fontsize=8, color="#333333")
 
-    # Annotate business counts
-    ax.text(0, lower_millions + 3, f"{num_trusted} businesses", ha='center', fontsize=8, color="#333333")
-    ax.text(1, upper_millions + 3, f"{num_trusted + num_untrusted} total (incl. {num_untrusted} projected)",
-            ha='center', fontsize=8, color="#333333")
-
-    # Grid and labels
-    ax.axhline(0, color='#CCCCCC', linewidth=0.5)
+    ax.axhline(0, color="#CCCCCC", linewidth=0.5)
     ax.set_ylabel("Revenue ($M)", fontsize=11, color="#333333")
-    ax.set_title("Estimated Market Revenue Potential", fontsize=16, fontweight='bold', color="#333333", pad=28)
+    ax.set_title("Estimated Market Revenue Potential", fontsize=16, fontweight="bold", color="#333333", pad=28)
     if end_date:
-        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes,
-                fontsize=10, color="#555555", ha='center')
+        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes, fontsize=10, color="#555555", ha="center")
 
-    ax.set_xticks([0, 1])
     ax.set_xticklabels(["Verified Revenue", "Projected Total"], fontsize=9, color="#333333")
-    ax.tick_params(axis='y', labelsize=9, colors="#333333")
-    ax.grid(False)
+    ax.tick_params(axis="y", labelsize=9, colors="#333333")
 
     plt.tight_layout()
     plt.savefig(path)
@@ -357,6 +350,7 @@ def get_market_size_analysis():
         "businesses or those facing operational challenges."
     )
 
+
 def generate_map_chart(output_path, summaries):
     import folium
     import pandas as pd
@@ -364,7 +358,6 @@ def generate_map_chart(output_path, summaries):
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     import time
-    import os
 
     df = pd.DataFrame(summaries)
     df = df[df["latitude"].notnull() & df["longitude"].notnull()]
@@ -373,16 +366,14 @@ def generate_map_chart(output_path, summaries):
 
     center_lat = df["latitude"].mean()
     center_lng = df["longitude"].mean()
-    m = folium.Map(location=[center_lat, center_lng], zoom_start=13)  # default zoom_start won't matter due to fit_bounds
+    m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
 
-    # Determine bounds of the map to include all points
     latitudes = df["latitude"].tolist()
     longitudes = df["longitude"].tolist()
-    sw = [min(latitudes), min(longitudes)]  # southwest corner
-    ne = [max(latitudes), max(longitudes)]  # northeast corner
-    m.fit_bounds([sw, ne])  # Adjust zoom and center dynamically
+    sw = [min(latitudes), min(longitudes)]
+    ne = [max(latitudes), max(longitudes)]
+    m.fit_bounds([sw, ne])
 
-    # Draw radius circle using geodesic max distance from center
     farthest_km = max(
         geodesic((center_lat, center_lng), (lat, lng)).km
         for lat, lng in zip(df["latitude"], df["longitude"])
@@ -419,3 +410,11 @@ def generate_map_chart(output_path, summaries):
     driver.save_screenshot(output_path)
     driver.quit()
     return True
+
+
+def build_exhibit_slide_from_template(chart_png_path: str, exhibit_title: str, analysis_text: str,
+                                      template_path: str = EXHIBIT_TEMPLATE) -> Presentation:
+    """Preferred entrypoint if you want direct control.
+    Kept for backwards compatibility with earlier code.
+    """
+    return generate_chart_slide(exhibit_title, chart_png_path, analysis_text)

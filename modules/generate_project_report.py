@@ -101,10 +101,17 @@ def export_project_pptx(project_id: str, supabase):
     # Exhibit Intro (Slide 20)
     copy_template_slides(EXHIBIT_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_20_exhibit_intro"), 0)
 
+    from modules.slides_exhibit import build_exhibit_slide_from_template
+
     def save_slide(title, chart_func, filename, summaries, summary_text):
         image_path = os.path.join(project_output_dir, filename.replace(".pptx", ".png"))
         if chart_func(image_path, summaries):
-            ppt = generate_chart_slide(title, image_path, summary_text)
+            ppt = build_exhibit_slide_from_template(
+                chart_png_path=image_path,
+                exhibit_title=title,
+                analysis_text=summary_text,
+                template_path="modules/downloaded_exhibit_template.pptx",
+            )
             ppt.save(os.path.join(project_output_dir, filename))
             print(f"✅ Saved {title} to: {filename}")
 
