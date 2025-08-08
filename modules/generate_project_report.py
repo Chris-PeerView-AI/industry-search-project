@@ -87,6 +87,7 @@ def export_project_pptx(project_id: str, supabase):
         template_path=TITLE_TEMPLATE,
         city=city,
         industry=industry,
+        add_cover_art=True  # enables the auto-generated cover image
         # subtitle="Custom benchmark and market intelligence using trusted third‑party data.",  # optional
     )
 
