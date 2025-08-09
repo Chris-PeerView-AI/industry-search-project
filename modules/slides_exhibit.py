@@ -303,9 +303,27 @@ def generate_ticket_chart(path, summaries, end_date: str):
 
 
 def generate_market_size_chart(path, summaries, end_date: str):
-    apply_peerview_style()
+    """
+    Bar chart with dynamic headroom so value labels never collide with bars/title.
+    Self-contained: uses project style if available, else a safe default.
+    """
+    # Try to apply the shared style; fall back to a minimal one if not present
+    try:
+        apply_peerview_style()  # defined in slides_exhibit.py in this project
+    except Exception:
+        plt.rcParams.update({
+            "font.family": "Montserrat",
+            "axes.facecolor": "#FFFFFF",
+            "figure.facecolor": "#F8F8F8",
+            "axes.edgecolor": "#CCCCCC",
+            "axes.grid": False,
+            "xtick.color": "#333333",
+            "ytick.color": "#333333",
+        })
 
+    # Data split
     trusted = [b for b in summaries if b.get("benchmark") == "trusted" and b.get("annual_revenue") is not None]
+    # If your untrusted flag is something else, swap "low" as needed:
     untrusted = [b for b in summaries if b.get("benchmark") == "low" and b.get("annual_revenue") is not None]
 
     trusted_total = sum(b["annual_revenue"] for b in trusted)
@@ -316,25 +334,46 @@ def generate_market_size_chart(path, summaries, end_date: str):
     lower_m = trusted_total / 1_000_000
     upper_m = projected_total / 1_000_000
 
+    # Plot
     fig, ax = plt.subplots(figsize=(8, 5))
     bars = ax.bar(["Verified Revenue", "Projected Total"], [lower_m, upper_m],
                   color=["#4CAF50", "#C0C0C0"], edgecolor="black", width=0.5)
-    bars[1].set_hatch("//")
+    bars[1].set_hatch("//")  # distinguish projected even in grayscale prints
 
-    for bar, val in zip(bars, [lower_m, upper_m]):
-        ax.text(bar.get_x()+bar.get_width()/2, val + 0.6, f"${val:.1f}M", ha="center", va="bottom", fontsize=9, weight="bold")
+    # Subtle frame
+    ax.set_facecolor("#FFFFFF")
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(1)
+        spine.set_edgecolor("#CCCCCC")
 
-    ax.text(0, lower_m + 1.2, f"{num_trusted} businesses", ha="center", fontsize=8, color="#333333")
-    ax.text(1, upper_m + 1.2, f"{num_trusted + num_untrusted} total (incl. {num_untrusted} projected)", ha="center", fontsize=8, color="#333333")
+    # --- Fix label overlap: add headroom and use dynamic offsets ---
+    vals = [lower_m, upper_m]
+    ymax = max(vals) if max(vals) > 0 else 1
+    ax.set_ylim(0, ymax * 1.25)     # ~25% headroom above tallest bar
+    yoffset = 0.04 * ax.get_ylim()[1]  # offset scales with axis height
 
+    for bar, val in zip(bars, vals):
+        x = bar.get_x() + bar.get_width() / 2
+        y = bar.get_height() + yoffset
+        ax.annotate(f"${val:.1f}M", (x, y),
+                    ha="center", va="bottom", fontsize=9, weight="bold", clip_on=False)
+
+    # Business counts — small offset so these don’t collide either
+    ax.text(0, lower_m + yoffset/2, f"{num_trusted} businesses", ha='center', fontsize=8, color="#333333")
+    ax.text(1, upper_m + yoffset/2, f"{num_trusted + num_untrusted} total (incl. {num_untrusted} projected)",
+            ha='center', fontsize=8, color="#333333")
+
+    # Axes/title
     ax.axhline(0, color="#CCCCCC", linewidth=0.5)
     ax.set_ylabel("Revenue ($M)", fontsize=11, color="#333333")
-    ax.set_title("Estimated Market Revenue Potential", fontsize=16, fontweight="bold", color="#333333", pad=28)
+    ax.set_title("Estimated Market Revenue Potential", fontsize=16, fontweight='bold', color="#333333", pad=28)
     if end_date:
-        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes, fontsize=10, color="#555555", ha="center")
+        ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes, fontsize=10, color="#555555", ha='center')
 
     ax.set_xticklabels(["Verified Revenue", "Projected Total"], fontsize=9, color="#333333")
-    ax.tick_params(axis="y", labelsize=9, colors="#333333")
+    ax.tick_params(axis='y', labelsize=9, colors="#333333")
+    ax.margins(y=0.10)
 
     plt.tight_layout()
     plt.savefig(path)
