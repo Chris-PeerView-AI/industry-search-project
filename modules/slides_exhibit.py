@@ -3,6 +3,7 @@
 # header/footer/margins as the rest of the deck.
 
 import matplotlib.pyplot as plt
+from modules.map_generator import generate_map_png_from_summaries
 from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
@@ -391,64 +392,10 @@ def get_market_size_analysis():
 
 
 def generate_map_chart(output_path, summaries):
-    import folium
-    import pandas as pd
-    from geopy.distance import geodesic
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    import time
-
-    df = pd.DataFrame(summaries)
-    df = df[df["latitude"].notnull() & df["longitude"].notnull()]
-    if df.empty:
-        return False
-
-    center_lat = df["latitude"].mean()
-    center_lng = df["longitude"].mean()
-    m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
-
-    latitudes = df["latitude"].tolist()
-    longitudes = df["longitude"].tolist()
-    sw = [min(latitudes), min(longitudes)]
-    ne = [max(latitudes), max(longitudes)]
-    m.fit_bounds([sw, ne])
-
-    farthest_km = max(
-        geodesic((center_lat, center_lng), (lat, lng)).km
-        for lat, lng in zip(df["latitude"], df["longitude"])
-    )
-    folium.Circle(
-        location=[center_lat, center_lng],
-        radius=farthest_km * 1000,
-        color="blue",
-        fill=True,
-        fill_opacity=0.05,
-        weight=0.7,
-        popup=f"Search Radius: {farthest_km:.2f} km"
-    ).add_to(m)
-
-    for _, biz in df.iterrows():
-        color = "gray" if biz.get("benchmark") != "trusted" else "green"
-        folium.Marker(
-            location=[biz["latitude"], biz["longitude"]],
-            popup=biz.get("name", ""),
-            icon=folium.Icon(color=color)
-        ).add_to(m)
-
-    tmp_html = output_path.replace(".png", ".html")
-    m.save(tmp_html)
-
-    options = Options()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    driver = webdriver.Chrome(options=options)
-    driver.set_window_size(900, 700)
-    driver.get("file://" + os.path.abspath(tmp_html))
-    time.sleep(2)
-    driver.save_screenshot(output_path)
-    driver.quit()
-    return True
+    """
+    Delegates to the centralized map generator for consistent styling & stable screenshots.
+    """
+    return generate_map_png_from_summaries(summaries, output_path, zoom_fraction=0.75)
 
 
 def build_exhibit_slide_from_template(chart_png_path: str, exhibit_title: str, analysis_text: str,

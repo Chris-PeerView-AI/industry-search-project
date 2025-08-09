@@ -10,6 +10,9 @@ from modules.generate_project_report import export_project_pptx
 from modules.pdf_only_export import generate_final_pdf, get_project_meta
 from modules.slides_admin import generate_title_slide
 from geopy.distance import geodesic
+from modules.map_generator import build_map
+from streamlit_folium import st_folium
+
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -177,44 +180,18 @@ if project_id:
                 st.rerun()
 
         # --- Map Preview (Streamlit only; independent of PPT screenshot) ---
-        import folium
-        from streamlit_folium import st_folium
+        # --- Map Preview (Streamlit only; matches PPT map style) ---
+        all_biz = supabase.table("enigma_summaries").select(
+            "name, latitude, longitude, benchmark"
+        ).eq("project_id", project_id).execute().data
+        df_all = pd.DataFrame(all_biz)
+        df_all = df_all[df_all["latitude"].notna() & df_all["longitude"].notna()]
 
-        center_lat, center_lng = row["latitude"], row["longitude"]
-        m = folium.Map(location=[center_lat, center_lng], zoom_start=13)
-
-        all_biz_res = supabase.table("enigma_summaries").select("latitude, longitude").eq("project_id", project_id).execute()
-        all_biz = pd.DataFrame(all_biz_res.data)
-        try:
-            farthest_km = max(
-                geodesic((center_lat, center_lng), (lat, lng)).km
-                for lat, lng in zip(all_biz["latitude"], all_biz["longitude"]) if pd.notnull(lat) and pd.notnull(lng)
-            )
-        except ValueError:
-            farthest_km = 1.0
-
-        folium.Circle(
-            location=[center_lat, center_lng],
-            radius=farthest_km * 1000,
-            color="blue",
-            fill=True,
-            fill_opacity=0.05,
-            weight=0.7,
-            popup=f"Search Radius: {farthest_km:.2f} km"
-        ).add_to(m)
-
-        for _, biz in df.iterrows():
-            color = "gray" if biz.get("benchmark") != "trusted" else "green"
-            if biz["id"] == row["id"]:
-                color = "yellow"
-            if pd.notnull(biz.get("latitude")) and pd.notnull(biz.get("longitude")):
-                folium.Marker(
-                    location=[biz["latitude"], biz["longitude"]],
-                    popup=biz.get("name", ""),
-                    icon=folium.Icon(color=color)
-                ).add_to(m)
-
-        st_folium(m, width=800, height=500)
+        if not df_all.empty:
+            m, meta = build_map(df_all, zoom_fraction=0.75)
+            st_folium(m, width=1200, height=800)
+        else:
+            st.info("No mappable businesses for this project.")
 
         st.divider()
         st.header("📋 Full Table")

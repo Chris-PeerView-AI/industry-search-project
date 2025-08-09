@@ -49,7 +49,6 @@ def copy_template_slides(template_path, output_path_prefix, start_slide_num):
 def export_project_pptx(project_id: str, supabase):
     print(f"🚀 Starting export for project ID: {project_id}")
 
-    # Clean output directory for this project
     project_output_dir = os.path.join(OUTPUT_DIR, project_id)
     if os.path.exists(project_output_dir):
         shutil.rmtree(project_output_dir)
@@ -64,7 +63,6 @@ def export_project_pptx(project_id: str, supabase):
         print("❌ No data found for this project.")
         return
 
-    # Fetch project metadata (industry and city)
     project_meta = (
         supabase.table("search_projects")
         .select("industry, location")
@@ -81,24 +79,20 @@ def export_project_pptx(project_id: str, supabase):
     industry = project_meta.get("industry", "Industry")
     city = project_meta.get("location", "City")
 
-    # Title Slide
     title_path = generate_title_slide(
         project_output_dir=project_output_dir,
         template_path=TITLE_TEMPLATE,
         city=city,
         industry=industry,
-        add_cover_art=True  # enables the auto-generated cover image
-        # subtitle="Custom benchmark and market intelligence using trusted third‑party data.",  # optional
+        add_cover_art=True
     )
 
-    # Intro Slides (Slide 10+)
     copy_template_slides(INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_10_intro"), 0)
 
     end_date = get_latest_period_end(supabase, project_id)
     trusted = [b for b in summaries if b.get("benchmark") == "trusted"]
     slide_summaries = {}
 
-    # Exhibit Intro (Slide 20)
     copy_template_slides(EXHIBIT_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_20_exhibit_intro"), 0)
 
     from modules.slides_exhibit import build_exhibit_slide_from_template
@@ -126,7 +120,6 @@ def export_project_pptx(project_id: str, supabase):
     slide_summaries["revenue"] = summary_revenue
     save_slide(REVENUE_SLIDE_TITLE, lambda path, summaries: generate_revenue_chart(path, summaries, end_date), "slide_21_revenue.pptx", summaries, summary_revenue)
 
-
     # YoY Growth
     sorted_yoy = sorted([b for b in trusted if b.get("yoy_growth") is not None], key=lambda x: x["yoy_growth"], reverse=True)
     top_yoy = ", ".join(f"{b['name']} ({b['yoy_growth'] * 100:.1f}%)" for b in sorted_yoy[:3])
@@ -136,7 +129,6 @@ def export_project_pptx(project_id: str, supabase):
     summary_yoy = f"Top growth: {top_yoy}. Declines: {bottom_yoy}. Avg: {avg_yoy * 100:.1f}%, Median: {med_yoy * 100:.1f}%."
     slide_summaries["yoy"] = summary_yoy
     save_slide(YOY_SLIDE_TITLE, lambda path, summaries: generate_yoy_chart(path, summaries, end_date), "slide_22_yoy.pptx", summaries, summary_yoy)
-
 
     # Ticket Size
     sorted_ticket = sorted(trusted, key=lambda x: x["ticket_size"], reverse=True)
@@ -168,11 +160,12 @@ def export_project_pptx(project_id: str, supabase):
     )
 
     # Map
+    map_png_path = os.path.join(project_output_dir, "slide_25_map.png")
     summary_map = f"Map of benchmark businesses around {city}, including trusted (green) and untrusted (gray) businesses."
     slide_summaries["map"] = summary_map
     save_slide(MAP_SLIDE_TITLE, generate_map_chart, "slide_25_map.pptx", summaries, summary_map)
+    assert os.path.exists(map_png_path), f"Expected map PNG missing: {map_png_path}"
 
-    # Summary statistics (must follow calculated values)
     summary_stats = {
         "total": len(summaries),
         "trusted": len(trusted),
@@ -182,21 +175,20 @@ def export_project_pptx(project_id: str, supabase):
         "mean_yoy": avg_yoy * 100
     }
 
-    # ✅ Now generate summary slide after all exhibit summaries are complete
     summary_analysis = generate_llama_summary(slide_summaries, model_name=LLM_MODEL)
     summary_analysis = summary_analysis.replace("Pet Industry in [Location]", f"{industry} in {city}")
     summary_path = os.path.join(project_output_dir, "slide_11_market_summary.pptx")
-    generate_summary_slide(summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry, map_image_path=os.path.join(project_output_dir, "slide_25_map.png"))
+    generate_summary_slide(
+        summary_path, trusted, end_date, summary_stats, summary_analysis, city, industry,
+        map_image_path=map_png_path
+    )
 
-    # Appendix Intro
     copy_template_slides(APPENDIX_INTRO_TEMPLATE, os.path.join(project_output_dir, "slide_40_appendix_intro"), 0)
 
-    # Appendix Slides
     print("📎 Starting appendix slide generation...")
     appendix_dir = os.path.join(project_output_dir)
     os.makedirs(appendix_dir, exist_ok=True)
 
-    # Gather tier reasons
     trusted_ids = [b["id"] for b in trusted]
     summaries_by_id = {b["id"]: b for b in summaries}
     search_ids = [b["search_result_id"] for b in trusted if b.get("search_result_id")]
@@ -206,13 +198,11 @@ def export_project_pptx(project_id: str, supabase):
     tier_lookup = {r["id"]: r["tier_reason"] for r in search_rows}
     print(f"📝 Retrieved {len(tier_lookup)} tier_reason entries")
 
-    # Add tier_reason to each business
     for b in trusted:
         sid = b.get("search_result_id")
         if sid and sid in tier_lookup:
             b["tier_reason"] = tier_lookup[sid]
 
-    # Generate new business table slide
     from modules.slides_summary import generate_paginated_business_table_slides
     table_slide_path = os.path.join(appendix_dir, "slide_41_BusinessTable.pptx")
 
@@ -226,10 +216,8 @@ def export_project_pptx(project_id: str, supabase):
 
     print(f"✅ Business summary table slide generated and added to appendix.")
 
-    # Disclosures (Slide 999+)
     copy_template_slides(DISCLOSURES_TEMPLATE, os.path.join(project_output_dir, "slide_999_disclosures"), 0)
 
-    # Convert and Merge PDF
     pdf_path = convert_and_merge_slides(project_output_dir, industry, city)
     print(f"💎 Final PDF report saved to {pdf_path}")
 
