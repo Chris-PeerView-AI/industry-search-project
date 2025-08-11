@@ -403,17 +403,7 @@ def get_market_size_analysis():
     )
 
 
-from pptx import Presentation
-from pptx.util import Inches
-
-# Helper copied from your file (lightweight):
-
-
-def _find_named(slide, *names):
-    for shp in slide.shapes:
-        if getattr(shp, "name", "") in names:
-            return shp
-    return None
+# Map anchor helpers (no duplicate imports)
 
 def _chart_anchor_dims_from_template(template_path: str):
     ppt = Presentation(template_path)
@@ -421,7 +411,7 @@ def _chart_anchor_dims_from_template(template_path: str):
     anchor = _find_named(slide, "ChartAnchor", "Chart", "ImageAnchor")
     if anchor:
         return anchor.left, anchor.top, anchor.width, anchor.height
-    # fallback = largest rectangle
+    # Fallback: largest rectangle
     max_area, best = 0, None
     for shp in slide.shapes:
         try:
@@ -430,20 +420,31 @@ def _chart_anchor_dims_from_template(template_path: str):
                 max_area, best = area, shp
         except Exception:
             pass
-    return (best.left, best.top, best.width, best.height) if best else (None, None, None, None)
+    if best:
+        return best.left, best.top, best.width, best.height
+    left = Inches(0.75)
+    top = Inches(1.2)
+    width = slide.part.presentation.slide_width - 2 * left
+    height = Inches(4.0)
+    return left, top, width, height
+
 
 def generate_map_chart(output_path, summaries):
-    try:
-        from modules.slides_exhibit import EXHIBIT_TEMPLATE
-    except Exception:
-        EXHIBIT_TEMPLATE = "modules/downloaded_exhibit_template.pptx"
     _, _, width, height = _chart_anchor_dims_from_template(EXHIBIT_TEMPLATE)
     aspect_ratio = float(width) / float(height) if height else (3/2)
-    from modules.map_generator import generate_map_png_from_summaries
+
+    # Pull UI/env zoom if provided; clamp to safe range
+    try:
+        import os
+        zoom_fraction = float(os.getenv("MAP_ZOOM_FRACTION", "0.75"))
+        zoom_fraction = min(max(zoom_fraction, 0.60), 0.90)
+    except Exception:
+        zoom_fraction = 0.75
+
     return generate_map_png_from_summaries(
         summaries,
         output_path,
-        zoom_fraction=0.75,
+        zoom_fraction=zoom_fraction,
         aspect_ratio=aspect_ratio,
         window_height_px=800,
     )
