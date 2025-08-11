@@ -17,10 +17,20 @@ EXHIBIT_TEMPLATE = "modules/downloaded_exhibit_template.pptx"
 # Style for matplotlib PNGs
 # ------------------------
 
+import matplotlib.pyplot as plt
+
 def apply_peerview_style():
-    # Keep styling light so charts sit cleanly in the PPT template
+    """Apply PeerView style; fallback if Montserrat isn't installed."""
+    try:
+        import matplotlib.font_manager as fm
+        has_montserrat = any("Montserrat" in f.name for f in fm.fontManager.ttflist)
+    except Exception:
+        has_montserrat = False
+
+    base_font = "Montserrat" if has_montserrat else "DejaVu Sans"
+
     plt.rcParams.update({
-        "font.family": "Montserrat",
+        "font.family": base_font,
         "axes.facecolor": "#FFFFFF",
         "figure.facecolor": "#FFFFFF",
         "axes.edgecolor": "#CCCCCC",
@@ -31,6 +41,7 @@ def apply_peerview_style():
         "ytick.color": "#333333",
         "axes.grid": False,
     })
+
 
 # ------------------------
 # PPT helper utilities
@@ -372,6 +383,7 @@ def generate_market_size_chart(path, summaries, end_date: str):
     if end_date:
         ax.text(0.5, 1.06, f"As of {end_date}", transform=ax.transAxes, fontsize=10, color="#555555", ha='center')
 
+    ax.set_xticks([0, 1])
     ax.set_xticklabels(["Verified Revenue", "Projected Total"], fontsize=9, color="#333333")
     ax.tick_params(axis='y', labelsize=9, colors="#333333")
     ax.margins(y=0.10)
@@ -391,11 +403,50 @@ def get_market_size_analysis():
     )
 
 
+from pptx import Presentation
+from pptx.util import Inches
+
+# Helper copied from your file (lightweight):
+
+
+def _find_named(slide, *names):
+    for shp in slide.shapes:
+        if getattr(shp, "name", "") in names:
+            return shp
+    return None
+
+def _chart_anchor_dims_from_template(template_path: str):
+    ppt = Presentation(template_path)
+    slide = ppt.slides[0]
+    anchor = _find_named(slide, "ChartAnchor", "Chart", "ImageAnchor")
+    if anchor:
+        return anchor.left, anchor.top, anchor.width, anchor.height
+    # fallback = largest rectangle
+    max_area, best = 0, None
+    for shp in slide.shapes:
+        try:
+            area = shp.width * shp.height
+            if area > max_area:
+                max_area, best = area, shp
+        except Exception:
+            pass
+    return (best.left, best.top, best.width, best.height) if best else (None, None, None, None)
+
 def generate_map_chart(output_path, summaries):
-    """
-    Delegates to the centralized map generator for consistent styling & stable screenshots.
-    """
-    return generate_map_png_from_summaries(summaries, output_path, zoom_fraction=0.75)
+    try:
+        from modules.slides_exhibit import EXHIBIT_TEMPLATE
+    except Exception:
+        EXHIBIT_TEMPLATE = "modules/downloaded_exhibit_template.pptx"
+    _, _, width, height = _chart_anchor_dims_from_template(EXHIBIT_TEMPLATE)
+    aspect_ratio = float(width) / float(height) if height else (3/2)
+    from modules.map_generator import generate_map_png_from_summaries
+    return generate_map_png_from_summaries(
+        summaries,
+        output_path,
+        zoom_fraction=0.75,
+        aspect_ratio=aspect_ratio,
+        window_height_px=800,
+    )
 
 
 def build_exhibit_slide_from_template(chart_png_path: str, exhibit_title: str, analysis_text: str,

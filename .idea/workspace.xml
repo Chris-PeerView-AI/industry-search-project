@@ -5,10 +5,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Created a test code for making a prettier map">
-      <change afterPath="$PROJECT_DIR$/modules/map_generator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/benchmark_review_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/benchmark_review_ui.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/generate_project_report.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/generate_project_report.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/map_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/map_generator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/modules/slides_exhibit.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_exhibit.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -18,6 +17,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
   &quot;lastFilter&quot;: {
