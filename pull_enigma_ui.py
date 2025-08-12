@@ -11,6 +11,11 @@ from supabase import create_client, Client
 sys.path.append(os.path.join(os.path.dirname(__file__), "modules"))
 from modules.business_metrics import generate_enigma_summaries, summarize_benchmark_stats
 from modules.pull_enigma_data_for_business import pull_enigma_data_for_business
+import inspect, modules.pull_enigma_data_for_business as puller_mod
+st.caption(f"Using puller: {inspect.getfile(puller_mod)}")
+st.caption(f"ON_CONFLICT_METRICS = {getattr(puller_mod, 'ON_CONFLICT_METRICS', 'MISSING')}")
+st.caption(f"Has [metrics] log? {'[metrics]' in inspect.getsource(puller_mod.pull_enigma_data_for_business)}")
+
 
 # --- Load Env & Supabase ---
 load_dotenv()
@@ -36,61 +41,59 @@ selected_project_name = st.selectbox("Select a Project", list(project_options.ke
 project_id = project_options[selected_project_name]
 
 if project_id:
-    # Sanity check
     project_check = supabase.table("search_projects").select("id").eq("id", project_id).execute()
     if not project_check.data:
-        st.error("Project not found. Please select a valid project.")
+        st.error("Selected project not found.")
         st.stop()
 
-    # Load businesses for selected project
-    with st.spinner("Loading businesses..."):
+    with st.spinner("Loading businesses for project…"):
         resp = supabase.table("search_results").select("*").eq("project_id", project_id).execute()
         all_businesses = resp.data or []
+        st.caption(f"Loaded {len(all_businesses)} businesses for project: {selected_project_name} ({project_id})")
+        if len(all_businesses) == 0:
+            st.info(
+                "No businesses found for this project. If this seems wrong, verify the 'search_results' table has rows for the selected project_id.")
+    st.caption(f"Loaded {len(all_businesses)} businesses for project {selected_project_name} ({project_id})")
 
-    # Tier filtering
     available_tiers = sorted({b.get("tier", 3) for b in all_businesses if b.get("tier") in [1, 2, 3]})
-    default_tiers = [t for t in [1] if t in available_tiers] or available_tiers[:1]
-    selected_tiers = st.multiselect("Select Tiers to Pull From", available_tiers, default=default_tiers)
-    filtered_businesses = [b for b in all_businesses if b.get("tier") in selected_tiers]
+    if not available_tiers:
+        selected_tiers = []
+        filtered_businesses = list(all_businesses)
+    else:
+        default_tiers = [t for t in [1] if t in available_tiers] or available_tiers[:1]
+        selected_tiers = st.multiselect("Select Tiers to Pull From", available_tiers, default=default_tiers)
+        filtered_businesses = [b for b in all_businesses if b.get("tier") in selected_tiers]
+    st.caption(f"After tier filter: {len(filtered_businesses)} businesses")
 
-    # Check global cache (enigma_businesses) for this project's place_ids
-    with st.spinner("Checking existing Enigma data..."):
+    with st.spinner("Checking existing Enigma data…"):
         place_ids = [b.get("place_id") for b in filtered_businesses if b.get("place_id")]
         place_ids = list({pid for pid in place_ids if pid})
 
         existing_global = {}
         if place_ids:
-            for i in range(0, len(place_ids), 500):
-                batch = place_ids[i : i + 500]
-                r = (
+            chunks = [place_ids[i : i + 500] for i in range(0, len(place_ids), 500)]
+            for chunk in chunks:
+                rows = (
                     supabase.table("enigma_businesses")
-                    .select("place_id, business_name, enigma_name, match_confidence")
-                    .in_("place_id", batch)
+                    .select("place_id, enigma_id, enigma_name, match_confidence, pull_timestamp")
+                    .in_("place_id", chunk)
                     .execute()
+                    .data
+                    or []
                 )
-                for row in (r.data or []):
-                    existing_global[row["place_id"]] = row
+                for r in rows:
+                    existing_global[r["place_id"]] = r
 
-        # Partition into: to_pull / already_pulled / skipped
-        to_pull, already_pulled, skipped = [], [], []
-        for b in filtered_businesses:
-            pid = b.get("place_id")
-            if not pid:
-                skipped.append(b)
-            elif pid in existing_global:
-                already_pulled.append(b)
-            else:
-                to_pull.append(b)
+    not_pulled = [b for b in filtered_businesses if not existing_global.get(b.get("place_id"))]
+    already_pulled = [b for b in filtered_businesses if existing_global.get(b.get("place_id"))]
 
-    st.write(f"Businesses in selected tiers: **{len(filtered_businesses)}**")
-    st.write(f"Missing place_id (skipped): **{len(skipped)}**")
-    st.write(f"Need initial Enigma pull (not in cache): **{len(to_pull)}**")
-    st.write(f"Already pulled (in cache): **{len(already_pulled)}**")
-
-    # --------- Section A: To Pull (new) ----------
     selected_new = []
-    if to_pull:
+    if to_pull := not_pulled:
         st.subheader("🆕 To Pull (not in cache)")
+        if st.button("Deselect all NEW", key="deselect_all_new"):
+            for i in range(len(to_pull)):
+                st.session_state[f"pull_new_{i}"] = False
+            st.rerun()
         for i, b in enumerate(to_pull):
             with st.expander(f"{b['name']} ({b.get('city')}, {b.get('state')})", expanded=False):
                 col1, col2 = st.columns([6, 1])
@@ -103,24 +106,25 @@ if project_id:
 
     st.write(f"✅ {len(selected_new)} businesses selected for initial pull")
 
-    # Force for NEW pulls only (repulls are per-row forced)
     force_repull_new = False
     if selected_new:
         force_repull_new = st.checkbox(
             "Force re‑pull for NEW pulls (ignore cache if found mid-run)", value=False
         )
 
-    # --------- Section B: Already Pulled ----------
     selected_repull = []
     if already_pulled:
         st.subheader("♻️ Already Pulled (repull?)")
+        if st.button("Deselect all REPULL", key="deselect_all_repull"):
+            for j in range(len(already_pulled)):
+                st.session_state[f"repull_{j}"] = False
+            st.rerun()
         for j, b in enumerate(already_pulled):
             cache = existing_global.get(b.get("place_id")) or {}
             conf = cache.get("match_confidence")
             conf_str = f"{conf:.2f}" if isinstance(conf, (int, float)) else (str(conf) if conf is not None else "—")
-
             with st.expander(
-                f"{b['name']} ({b.get('city')}, {b.get('state')}) — cached conf: {conf_str}",
+                f"{b['name']} ({b.get('city')}, {b.get('state')}) — cache conf={conf_str}",
                 expanded=False,
             ):
                 col1, col2 = st.columns([6, 1])
@@ -135,13 +139,12 @@ if project_id:
 
     st.write(f"🔁 {len(selected_repull)} businesses selected for re‑pull")
 
-    # --------- Submit ----------
     if st.button("Submit Selected", key="submit_selected"):
         pull_session_id = str(uuid.uuid4())
-        pull_timestamp = datetime.utcnow()
+        from datetime import datetime, timezone
+        pull_timestamp = datetime.now(timezone.utc)
 
         with st.spinner("Fetching from Enigma and storing in Supabase..."):
-            # 1) Initial pulls
             for b in selected_new:
                 try:
                     b["project_id"] = project_id
@@ -152,7 +155,6 @@ if project_id:
                 except Exception as e:
                     st.error(f"❌ Failed NEW pull for {b['name']}: {e}")
 
-            # 2) Repulls — always force per selection
             for b in selected_repull:
                 try:
                     b["project_id"] = project_id
@@ -165,7 +167,6 @@ if project_id:
 
         st.success("✅ Data pull & repull complete.")
 
-        # Rebuild per‑project summaries
         with st.spinner("Calculating summaries for project..."):
             try:
                 generate_enigma_summaries(project_id)
@@ -175,7 +176,7 @@ if project_id:
             except Exception as e:
                 st.error(f"⚠️ Failed to generate summaries: {e}")
 
-    if skipped:
+    if skipped := [b for b in filtered_businesses if not b.get("place_id")]:
         with st.expander("⚠️ Skipped Businesses (Missing place_id)"):
             st.write([b["name"] for b in skipped])
 
