@@ -4,17 +4,13 @@ PeerView AI is a Streamlit + Python app that turns Supabase project data (Enigma
 
 What’s new (Aug 2025)
 
-Centralized map rendering via modules/map_generator.py (used by the UI preview and the slide exporter).
-
-Aspect‑ratio aware screenshots: the map PNG renders to the ChartAnchor ratio; exact‑fit center crop on placement guarantees no side bars.
-
-Stable zoom & centering: fractional zoom + bbox midpoint centering; forced setView([lat,lng], zoom) to avoid Leaflet snapping.
-
-Consistent assets: the Summary slide reuses the exact Exhibit map PNG, so styling/zoom are identical.
-
-UI zoom knob: Streamlit slider (zoom_fraction) controls the circle’s height as a % of image; the export uses the same value.
-
-Diagnostics: optional center‑dot overlay (MAP_DEBUG_OVERLAY=1), bounded tile wait, DPR=1 for crisp screenshots.
+• Map export is now **rail‑free**: we render the PNG to the slide’s ChartAnchor aspect ratio and capture an **element‑level screenshot** (not the whole window). No in‑PPT cropping needed.
+• **Stable centering**: bbox‑midpoint center + fractional zoom; we explicitly call `setView([lat,lng], zoom)` to avoid Leaflet snapping.
+• **Pixel‑locked viewport**: headless Chrome viewport is forced to the requested size via CDP and full‑bleed CSS. This prevents 1400×661‑style surprises.
+• **QA guard**: after saving the PNG we verify its dimensions vs. the expected size and log `[MAP QA] ...` lines; optional env flag can downgrade to warnings.
+• **Consistent assets**: the Summary slide reuses the exact Exhibit map PNG, so styling/zoom are identical.
+• **UI zoom knob**: Streamlit slider (`zoom_fraction`) controls the search ring height as a % of image; the export uses the same value.
+• **Diagnostics**: optional center‑dot overlay, bounded tile wait, DPR=1 for crisp screenshots.
 
 High‑level workflow
 
@@ -148,25 +144,28 @@ downloaded_businessview_template.pptx (optional per‑business slide)
 
 8) map_generator.py (NEW)
 
-Single source of truth for map visuals.
+Single source of truth for map visuals (Folium + Leaflet + Selenium screenshot).
 
-Folium + Leaflet with Positron tiles, dashed radius ring, larger legend, and stabilized fractional zoom.
+Key behaviors
 
-Aspect‑ratio aware rendering (window width = height × anchor_ratio).
+- **Aspect‑ratio aware rendering**: exporter computes `window = (height × anchor_ratio, height)` and renders to that exact pixel size.
+- **Full‑bleed HTML**: CSS removes margins/scrollbars and locks the map `<div>` to the requested pixel size.
+- **Element screenshot**: Selenium captures the map element by ID; no window chrome, no rails.
+- **Viewport enforcement**: Chrome DevTools Protocol forces the viewport to the same `window` size; logs `[MAP QA] viewport=WxH target=WxH`.
+- **Stable zoom & center**: fractional zoom stays enabled; center is the bbox midpoint; radius is farthest‑point distance.
+- **QA guard**: after writing the PNG we verify dimensions and log `[MAP QA] final_png=WxH expected=WxH` (optional assert).
 
-BBox midpoint for map center; radius from farthest point.
+Exposed API
 
-DPR fixed to 1; bounded tile wait; headless Chrome screenshot.
+- `build_map(df, *, zoom_fraction=0.75, window=(w,h)) -> (folium.Map, MapMeta)`
+- `save_html_and_png(m, html_path, png_path, window=(w,h))`
+- `generate_map_png_from_summaries(summaries, output_path, *, zoom_fraction=0.75, aspect_ratio=None, window_height_px=800)`
+- `generate_map_png_from_project(project_id, supabase, output_dir, *, zoom_fraction=0.75, aspect_ratio=None, window_height_px=800)`
 
-Exposed API:
+Dependencies
 
-build_map(df, *, zoom_fraction=0.75, window=None)
-
-save_html_and_png(m, html_path, png_path, window=(1200,800))
-
-generate_map_png_from_summaries(summaries, output_path, *, zoom_fraction=0.75, aspect_ratio=None, window_height_px=800)
-
-generate_map_png_from_project(project_id, supabase, output_dir, *, zoom_fraction=0.75, aspect_ratio=None, window_height_px=800)
+- Headless Chrome + matching chromedriver.
+- Chrome 109+ recommended for CDP viewport overrides.
 
 Template placeholders (what code expects)
 
@@ -244,13 +243,11 @@ LLM_MODEL (defaults to "llama3"; invoked via local ollama)
 
 Run‑time knobs (env vars):
 
-MAP_ZOOM_FRACTION — if not provided by UI, defaults to 0.75.
-
-MAP_DEBUG_OVERLAY — set to 1 to draw a tiny red dot at computed map center (for diagnostics).
-
-MAP_WINDOW_HEIGHT_PX (optional) — target render height (defaults 800).
-
-MAP_USE_FRACTIONAL_ZOOM (optional) — set 0 to disable fractional zoom JS.
+- `MAP_ZOOM_FRACTION` — if not provided by UI, defaults to 0.75 (recommended range 0.60–0.90).
+- `MAP_DEBUG_OVERLAY` — set to 1 to draw a tiny red dot at computed map center (diagnostics) and print extra QA lines.
+- `MAP_WINDOW_HEIGHT_PX` (optional) — target render height (defaults 800).
+- `MAP_USE_FRACTIONAL_ZOOM` (optional) — set 0 to disable fractional zoom JS.
+- `MAP_STRICT_DIM_CHECK` (optional) — default `1`. If `0`, PNG size mismatches print a warning instead of raising.
 
 Output root: modules/output/{project_id} (slide PNGs/PPTX + final PDF).
 
@@ -287,19 +284,12 @@ Map: Positron tiles, dashed search radius ring, bbox midpoint center, trusted =
 
 Common “gotchas” & troubleshooting
 
-Template shape names can be stripped by Google Slides → we fall back to the largest rectangle; exact‑fit crop still removes bars.
-
-Missing geos → businesses without lat/lng are flagged low by DQ and excluded from trusted exhibits.
-
-Extreme YoY → filtered by DQ; you can override in the UI.
-
-Chrome/driver → required for headless map screenshot.
-
-Side bars on the map → ensure ChartAnchor ratio matches intent (3:2 or 16:9). Exporter now renders to anchor ratio and exact‑fit crops on placement to remove rails.
-
-“Off‑center” map → we use setView([center], zoom) and bbox midpoint; turn on MAP_DEBUG_OVERLAY=1 to verify visual center.
-
-PNG missing during export → exporter asserts the expected PNG path after map generation; check Chrome/driver logs if it fails.
+- **Side bars / rails** — ensure the slide’s ChartAnchor ratio matches your intent (3:2 or 16:9). The exporter renders to the anchor ratio and captures the **map element**, so rails usually indicate a viewport mismatch; check `[MAP QA] viewport=... target=...` logs.
+- **PNG size mismatch (e.g., expected 1400×800 got 1400×661)** — headless viewport didn’t match the requested size. Verify Chrome/chromedriver match, and confirm the logs show `viewport=1400x800`. The exporter uses CDP to enforce this; if you see a mismatch, upgrade Chrome/driver.
+- **Off‑center map** — we use bbox midpoint + `setView([lat,lng], zoom)` to avoid snapping. Turn on `MAP_DEBUG_OVERLAY=1` to visualize the center.
+- **Missing geos** — businesses without lat/lng are flagged low by DQ and excluded from trusted exhibits.
+- **Extreme YoY** — filtered by DQ; you can override in the UI.
+- **PNG missing during export** — exporter asserts the expected PNG path after map generation; check Chrome/driver logs if it fails.
 
 Extending / customizing
 
