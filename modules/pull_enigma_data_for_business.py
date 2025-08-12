@@ -1,14 +1,12 @@
 """
-Pull Enigma data for a single Google Place business (v2.2.2)
+Pull Enigma data for a single Google Place business (v2.2.4)
 
-What changed since v2.2
------------------------
-• Fix: mapping insert sent a NULL id, but the DB column is NOT NULL without a default. We now assign a UUID on INSERT.
-• Safer write path:
-  - If mapping exists → UPDATE by id (no primary-key churn).
-  - If mapping doesn’t exist → INSERT with generated id. If INSERT races, fall back to UPSERT on google_places_id.
-• Kept per‑project metrics dedupe: ON CONFLICT (business_id, project_id, quantity_type, period, period_end_date).
-• Added noisy debug lines so we can trace project_id end‑to‑end.
+Delta vs v2.2.3
+----------------
+• **Street matcher fix:** compare street-only cores symmetrically (both sides drop city/STATE/ZIP) so
+  "2601 Cardinal Loop, Del Valle" ≡ "2601 CARDINAL LOOP DEL VALLE TX 78617".
+• **Confidence gate tightened:** skip metrics when confidence < 0.90 **even on force_repull**.
+• Minor: clearer debug and comments.
 """
 
 import os
@@ -32,6 +30,7 @@ PUNCT_RE = re.compile(r"[^\w\s]")
 MULTISPACE_RE = re.compile(r"\s+")
 SUFFIX_RE = re.compile(r"\b(the|a|llc|pllc|inc|inc\.|co|co\.|corp|corp\.|ltd|ltd\.|spa|clinic|center)\b", re.I)
 ZIP_RE = re.compile(r"^\d{5}(?:-\d{4})?$")
+WHITESPACE_RE = re.compile(r"\s+")
 
 
 def _strip_diacritics(s: str) -> str:
@@ -57,22 +56,45 @@ def normalize_street(s: str) -> str:
     return s.strip()
 
 
+def _zip5(z: str | None) -> str | None:
+    if not z:
+        return None
+    z = str(z).strip()
+    m = re.match(r"(\d{5})", z)
+    return m.group(1) if m else None
+
+
+def _zip3(z: str | None) -> str | None:
+    z5 = _zip5(z)
+    return z5[:3] if z5 else None
+
+
 def street_equal(g_street: str, e_full_address: str) -> bool:
+    """Return True if the street line is the same, ignoring city/state/ZIP and unit synonyms.
+    This is symmetric: both sides are reduced to a street-only *core* before comparison.
+    """
     if not g_street or not e_full_address:
         return False
-    e_street = e_full_address.strip()
-    m = re.search(r"\b[A-Z]{2}\s+\d{5}(?:-\d{4})?$", e_street, re.I)
-    if m:
-        e_street = e_street[: m.start()].rstrip(", ")
-    try:
-        g_city_part = g_street.split(",")[1].strip()
-        e_street = re.sub(r"[, ]+\b" + re.escape(g_city_part) + r"\b\s*$", "", e_street, flags=re.I).strip(", ")
-    except Exception:
-        pass
-    return normalize_street(g_street) == normalize_street(e_street)
 
+    # Normalize inputs
+    g_raw = normalize_street(g_street)
+    e_raw = normalize_street(e_full_address)
 
-WHITESPACE_RE = re.compile(r"\s+")
+    # Derive a city hint from the Google address if it contains a comma
+    city_hint = None
+    if "," in g_raw:
+        parts = [p.strip() for p in g_raw.split(",") if p.strip()]
+        if len(parts) >= 2:
+            city_hint = parts[1]
+    # Street-only core from Google: take text before first comma
+    g_core = g_raw.split(",")[0].strip()
+
+    # Strip STATE + ZIP from Enigma side, then optional trailing city hint
+    e_core = re.sub(r"\b[a-z]{2}\s+\d{5}(?:-\d{4})?$", "", e_raw).strip()
+    if city_hint:
+        e_core = re.sub(r"[, ]+\b" + re.escape(city_hint) + r"\b$", "", e_core, flags=re.I).strip(", ")
+
+    return g_core == e_core
 
 
 def _clean_name(s: str) -> str:
@@ -97,11 +119,13 @@ def _name_sim(a: str, b: str) -> float:
 def score_confidence(*, g_name, g_street, g_city, g_state, g_zip, e_name, e_full, e_city, e_state, e_zip):
     g_city_n = (g_city or "").strip().lower()
     g_state_n = (g_state or "").strip().lower()
-    g_zip_n = (str(g_zip or "").strip())
+    g_zip_n = _zip5(g_zip)
+    g_zip3 = _zip3(g_zip)
 
     e_city_n = (e_city or "").strip().lower()
     e_state_n = (e_state or "").strip().lower()
-    e_zip_n = (str(e_zip or "").strip())
+    e_zip_n = _zip5(e_zip)
+    e_zip3 = _zip3(e_zip)
 
     try:
         s_equal = street_equal(g_street, e_full)
@@ -111,47 +135,68 @@ def score_confidence(*, g_name, g_street, g_city, g_state, g_zip, e_name, e_full
     city_equal = (g_city_n == e_city_n) if g_city_n and e_city_n else False
     state_equal = (g_state_n == e_state_n) if g_state_n and e_state_n else False
     zip_equal = (g_zip_n == e_zip_n) if g_zip_n and e_zip_n else False
+    zip3_equal = (g_zip3 == e_zip3) if g_zip3 and e_zip3 else False
 
     n_sim = _name_sim(g_name, e_name)
 
+    # Strong street+state (+zip or zip3) rule
+    if s_equal and state_equal and (zip_equal or zip3_equal):
+        return 0.97, "street_zip_state_match", {
+            "name_sim": round(n_sim, 2),
+            "city_equal": city_equal, "state_equal": state_equal,
+            "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
+        }
+    # Promote exact street+state even if zip differs, with decent name
+    if s_equal and state_equal and n_sim >= 0.85:
+        return 0.95, "street_state_match_name_close", {
+            "name_sim": round(n_sim, 2),
+            "city_equal": city_equal, "state_equal": state_equal,
+            "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
+        }
+
+    # Existing strong rules
     if n_sim >= 0.93 and zip_equal and state_equal:
         return (1.00 if s_equal else 0.95), ("street_city_state_match" if s_equal else "name_zip_match"), {
             "name_sim": round(n_sim, 2),
             "city_equal": city_equal, "state_equal": state_equal,
-            "zip_equal": zip_equal, "street_equal": s_equal,
-            "boost": "name_zip_high"
+            "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
+            "boost": "name_zip_high",
         }
     if n_sim >= 0.88 and zip_equal and state_equal:
         return (0.95 if s_equal else 0.90), "name_zip_state_match", {
             "name_sim": round(n_sim, 2),
             "city_equal": city_equal, "state_equal": state_equal,
-            "zip_equal": zip_equal, "street_equal": s_equal,
-            "boost": "name_zip_state"
+            "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
+            "boost": "name_zip_state",
         }
+
     if s_equal and city_equal and state_equal:
         conf = 1.00 if n_sim >= 0.85 else 0.95
         reason = "street_city_state_match" if conf == 1.00 else "street_match_name_close"
         return conf, reason, {
             "name_sim": round(n_sim, 2),
             "city_equal": city_equal, "state_equal": state_equal,
-            "zip_equal": zip_equal, "street_equal": s_equal
+            "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
         }
+
     if s_equal and (city_equal or state_equal):
         return 0.80, "street_match_partial_city_state", {
             "name_sim": round(n_sim, 2),
             "city_equal": city_equal, "state_equal": state_equal,
-            "zip_equal": zip_equal, "street_equal": s_equal
+            "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
         }
+
     if n_sim >= 0.90 and city_equal and state_equal:
         return 0.70, "name_city_state_match", {
             "name_sim": round(n_sim, 2),
             "city_equal": city_equal, "state_equal": state_equal,
-            "zip_equal": zip_equal, "street_equal": s_equal
+            "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
         }
+
     return 0.40, "weak_match", {
         "name_sim": round(n_sim, 2),
         "city_equal": city_equal, "state_equal": state_equal,
-        "zip_equal": zip_equal, "street_equal": s_equal
+        "zip_equal": zip_equal, "zip3_equal": zip3_equal, "street_equal": s_equal,
     }
 
 
@@ -197,13 +242,22 @@ def _enigma_search(search_input: dict, *, timeout=20):
     return data.get("data", {}).get("search", []), payload
 
 
+def _prefer_place_component(business: dict, *keys):
+    """Return the first non‑empty among possible Google Place fields for a component."""
+    for k in keys:
+        v = business.get(k)
+        if v is not None and str(v).strip() != "":
+            return v
+    return None
+
+
 def _find_best_enigma_match(*, g_name, g_city, g_state, g_zip, g_street, force_repull: bool):
     g_name_clean = _clean_name(g_name)
-    g_zip_norm = (str(g_zip).strip() if g_zip else None)
+    g_zip_norm = _zip5(g_zip)
+    g_zip3 = _zip3(g_zip)
 
     variants = [
-        {"entityType": "OPERATING_LOCATION", "name": g_name,
-         "address": {"city": g_city, "state": g_state, "postalCode": g_zip_norm}},
+        {"entityType": "OPERATING_LOCATION", "name": g_name, "address": {"city": g_city, "state": g_state, "postalCode": g_zip_norm}},
         {"entityType": "OPERATING_LOCATION", "name": g_name, "address": {"city": g_city, "state": g_state}},
         {"entityType": "OPERATING_LOCATION", "name": g_name_clean, "address": {"city": g_city, "state": g_state}},
         {"entityType": "OPERATING_LOCATION", "name": g_name, "address": {"state": g_state}},
@@ -240,9 +294,19 @@ def _find_best_enigma_match(*, g_name, g_city, g_state, g_zip, g_street, force_r
             e_zip = addr_node.get("zip")
             e_full = addr_node.get("fullAddress")
 
+            # Hard filter on state (when we have one)
+            if g_state and e_state and str(g_state).strip().upper() != str(e_state).strip().upper():
+                continue
+
+            # Soft prune on far ZIP3 when name is weak and street doesn't match
+            n_sim_tmp = _name_sim(g_name, enigma_name)
+            if g_zip3 and _zip3(e_zip) and g_zip3 != _zip3(e_zip):
+                if not street_equal(g_street, e_full) and n_sim_tmp < 0.80:
+                    continue
+
             conf, reason, _dbg = score_confidence(
                 g_name=g_name, g_street=g_street, g_city=g_city, g_state=g_state, g_zip=g_zip_norm,
-                e_name=enigma_name, e_full=e_full, e_city=e_city, e_state=e_state, e_zip=e_zip
+                e_name=enigma_name, e_full=e_full, e_city=e_city, e_state=e_state, e_zip=e_zip,
             )
             if not best or conf > best[1]:
                 best = (loc, conf, reason, {
@@ -267,7 +331,7 @@ def _to_iso(ts):
     return ts if ts is not None else None
 
 
-def pull_enigma_data_for_business(business, force_repull: bool = False):
+def pull_enigma_data_for_business(business: dict, force_repull: bool = False):
     place_id = business.get("place_id")
     if not place_id:
         print("⚠️ Missing place_id; skipping pull.")
@@ -278,12 +342,13 @@ def pull_enigma_data_for_business(business, force_repull: bool = False):
         raise ValueError(f"project_id missing for place_id={business.get('place_id')}")
     pull_session_id = business.get("pull_session_id")
 
+    # Prefer precise per‑place components when available
     gpid = business.get("google_places_id") or place_id
     g_name = business.get("name")
-    g_city = business.get("city")
-    g_state = business.get("state")
-    g_zip = business.get("zip") or business.get("postal_code")
-    g_street = business.get("address")
+    g_city = _prefer_place_component(business, "place_city", "google_city", "city")
+    g_state = _prefer_place_component(business, "place_state", "google_state", "state")
+    g_zip = _prefer_place_component(business, "place_zip", "google_zip", "zip", "postal_code")
+    g_street = _prefer_place_component(business, "place_address", "google_address", "address")
 
     # Verbose debug so we can see project context on every call
     print(f"[pull] place_id={place_id} project_id={project_id} name={g_name}")
@@ -354,7 +419,7 @@ def pull_enigma_data_for_business(business, force_repull: bool = False):
         supabase.table("enigma_businesses").update(mapping_row_base).eq("id", business_id).execute()
         print(f"✅ Updated mapping for place_id={place_id} (id={business_id}, conf={match_confidence:.2f})")
     else:
-        # Fresh INSERT with generated id (DB column is NOT NULL and lacks a default)
+        # Fresh INSERT with generated id (DB column is NOT NULL and may lack a default)
         business_id = str(uuid.uuid4())
         insert_row = {"id": business_id, **mapping_row_base}
         print("[DB] insert enigma_businesses (new mapping)")
@@ -367,7 +432,8 @@ def pull_enigma_data_for_business(business, force_repull: bool = False):
             supabase.table("enigma_businesses").upsert(insert_row, on_conflict=ON_CONFLICT_BUSINESS).execute()
         print(f"✅ Inserted/Upserted mapping for place_id={place_id} (id={business_id}, conf={match_confidence:.2f})")
 
-    if match_confidence < 0.90 and not force_repull:
+    # ---- Confidence gate for metrics (strict) ----
+    if match_confidence < 0.90:
         print(f"⏭️ Skipping metrics (confidence {match_confidence:.2f} < 0.90). Mapping cached for reuse.")
         return business_id
 
