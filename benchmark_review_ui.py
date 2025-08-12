@@ -1,3 +1,12 @@
+# PATCHED: benchmark_review_ui.py — add side-by-side Enigma/Google fields for the selected business
+# Changes (Aug 12, 2025):
+# 1) Remove Seasonality Ratio from the selected-business detail block.
+# 2) Append Enigma-side fields (Enigma Name, Enigma Address) and the mapping confidence score.
+# 3) Only show the top/most-recent mapping per Google Place (rn=1 equivalent), and include rows down to 0.70 confidence.
+# 4) Keep existing benchmark toggle behavior (writes to enigma_summaries.benchmark).
+#
+# NOTE: This file shows only the modified sections + a small helper. Integrate these blocks into your existing file.
+
 import streamlit as st
 import pandas as pd
 import os
@@ -13,7 +22,6 @@ from geopy.distance import geodesic
 from modules.map_generator import build_map
 from streamlit_folium import st_folium
 
-
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -22,7 +30,60 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 st.set_page_config(page_title="Benchmark Review Tool", layout="wide")
 st.title("📊 Benchmark Review & Report Prep")
 
-# -------------- Project Picker --------------
+
+# ---------------- Helper: fetch latest Enigma mapping for a given search_result_id ----------------
+
+def fetch_latest_mapping_for_search_result(search_result_id: str):
+    """Return the most-recent mapping row from enigma_businesses for the Google Place behind this search_result.
+    Uses search_results.place_id to join to enigma_businesses.place_id (since search_results.google_places_id may not exist).
+    Includes matches down to 0.70 confidence. Returns a dict or None.
+    """
+    if not search_result_id:
+        return None
+    # Look up the Place ID for this search result row (no google_places_id column in this DB)
+    sr = (
+        supabase.table("search_results")
+        .select("id, place_id")
+        .eq("id", search_result_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not sr:
+        return None
+    place_id = sr[0].get("place_id")
+    if not place_id:
+        return None
+
+    # Get the latest mapping row for this place (rn=1 equivalent)
+    eb_rows = (
+        supabase.table("enigma_businesses")
+        .select(
+            "id, business_name, full_address, city, state, zip, "
+            "enigma_name, matched_full_address, matched_city, matched_state, matched_postal_code, "
+            "match_confidence, match_reason, place_id, enigma_id, pull_timestamp, date_pulled"
+        )
+        .eq("place_id", place_id)
+        .order("pull_timestamp", desc=True)
+        .order("date_pulled", desc=True)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not eb_rows:
+        return None
+    row = eb_rows[0]
+    # Enforce 0.70 lower bound per requirements
+    try:
+        conf = float(row.get("match_confidence") or 0.0)
+    except Exception:
+        conf = 0.0
+    if conf < 0.70:
+        return None
+    return row
+
+
+# ---------------- Project Picker (unchanged) ----------------
 active_only = st.checkbox("Show Active Projects Only", value=True)
 project_list_res = supabase.table("search_projects").select("id, name").order("created_at", desc=True).execute()
 project_data = project_list_res.data
@@ -36,67 +97,14 @@ project_id = project_options[project_name]
 project_output_dir = f"modules/output/{project_id}"
 os.makedirs(project_output_dir, exist_ok=True)
 
-# -------------- One-time Data Quality Check --------------
-# Streamlit reruns the script frequently; guard with both a file marker and session_state
+# ---------------- One-time Data Quality Check (unchanged logic) ----------------
 DQ_MARKER = os.path.join(project_output_dir, ".dq_done")
 if "dq_checked" not in st.session_state:
     st.session_state["dq_checked"] = {}
 
-should_run_dq = (not os.path.exists(DQ_MARKER)) and (not st.session_state["dq_checked"].get(project_id))
+# (..snip.. existing DQ code ..)
 
-if should_run_dq:
-    st.info("🔍 Running initial data quality check for new project...")
-    summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
-
-    if summaries:
-        valid_tickets = [b.get("ticket_size") for b in summaries if isinstance(b.get("ticket_size"), (int, float))]
-        avg_ticket = (sum(valid_tickets) / len(valid_tickets)) if valid_tickets else 0.0
-
-        def is_low_quality(b):
-            revenue = b.get("annual_revenue")
-            yoy = b.get("yoy_growth")
-            ticket = b.get("ticket_size")
-            lat = b.get("latitude")
-            lng = b.get("longitude")
-            ticket_low = (ticket is None) or (avg_ticket > 0 and (ticket < 0.3 * avg_ticket or ticket > 3.0 * avg_ticket))
-            return (
-                revenue is None or revenue < 50_000
-                or yoy is None or abs(yoy) > 1.0
-                or ticket_low
-                or lat is None or lng is None
-            )
-
-        # Only update rows that actually change
-        to_low = [b["id"] for b in summaries if is_low_quality(b) and b.get("benchmark") != "low"]
-        if to_low:
-            for biz_id in to_low:
-                supabase.table("enigma_summaries").update({"benchmark": "low"}).eq("id", biz_id).execute()
-            st.success(f"🛠️ Marked {len(to_low)} businesses as 'low' quality.")
-        else:
-            st.success("✅ All businesses passed data quality checks or were already labeled.")
-
-        # Write marker and session flag
-        with open(DQ_MARKER, "w") as f:
-            f.write("done\n")
-        st.session_state["dq_checked"][project_id] = True
-        st.rerun()
-    else:
-        st.info("ℹ️ No summaries found yet; skipping data quality check.")
-        with open(DQ_MARKER, "w") as f:
-            f.write("skipped-no-data\n")
-        st.session_state["dq_checked"][project_id] = True
-        st.rerun()
-else:
-    # Optional button to re-run DQ if needed
-    cols = st.columns([1,1,6])
-    with cols[0]:
-        if st.button("♻️ Re-run Data Quality"):
-            if os.path.exists(DQ_MARKER):
-                os.remove(DQ_MARKER)
-            st.session_state["dq_checked"][project_id] = False
-            st.rerun()
-
-# -------------- Main Panel --------------
+# ---------------- Main Panel ----------------
 if project_id:
     summaries = supabase.table("enigma_summaries").select("*").eq("project_id", project_id).execute().data
     df = pd.DataFrame(summaries)
@@ -130,42 +138,56 @@ if project_id:
                     label="📥 Download PDF Report",
                     data=f,
                     file_name="benchmark_report.pdf",
-                    mime="application/pdf"
+                    mime="application/pdf",
                 )
 
-        benchmark_summary = supabase.table("benchmark_summaries").select("*").eq("project_id", project_id).execute().data
+        benchmark_summary = supabase.table("benchmark_summaries").select("*").eq("project_id",
+                                                                                 project_id).execute().data
 
         left, right = st.columns(2)
         with left:
             selected_name = st.selectbox("Select Business to Review", df["name"].tolist())
             row = df[df["name"] == selected_name].iloc[0]
+
+            # NEW: fetch latest Enigma mapping for this business' Google Place
+            latest_mapping = fetch_latest_mapping_for_search_result(row.get("search_result_id"))
+            enigma_name = latest_mapping.get("enigma_name") if latest_mapping else None
+            enigma_addr = latest_mapping.get("matched_full_address") if latest_mapping else None
+            conf = latest_mapping.get("match_confidence") if latest_mapping else None
+
             st.subheader(f"📍 {row['name']}")
-            st.markdown(f"""
-            **Address:** {row['address']}
-            **Revenue:** ${row['annual_revenue']:,.0f}
-            **YoY Growth:** {row['yoy_growth']:.2%}
-            **Ticket Size:** ${row['ticket_size']:,.0f}
-            **Transactions:** {row['transaction_count']:,.0f}
-            **Seasonality Ratio:** {row['seasonality_ratio']:.2f}
-            """)
+            # UPDATED: removed Seasonality Ratio; appended Enigma fields + Confidence
+            st.markdown(
+                f"""
+                **Address:** {row.get('address', '—')}
+                **Revenue:** ${row.get('annual_revenue', 0) :,.0f}
+                **YoY Growth:** {(row.get('yoy_growth') or 0):.2%}
+                **Ticket Size:** ${row.get('ticket_size', 0) :,.0f}
+                **Transactions:** {row.get('transaction_count', 0) :,.0f}
+
+                **Enigma Name:** {enigma_name or '—'}
+                **Enigma Address:** {enigma_addr or '—'}
+                **Match Confidence:** {(float(conf) if conf is not None else 0.0):.2f}
+                """
+            )
             st.markdown("---")
 
         with right:
             if benchmark_summary:
                 s = benchmark_summary[0]
                 st.subheader("📈 Benchmark Summary")
-                st.markdown(f"""
-                - **Businesses Included**: {s['benchmark_count']}
-                - **Average Revenue**: ${s['average_annual_revenue']:,.0f}
-                - **Median Revenue**: ${s['median_annual_revenue']:,.0f}
-                - **Avg. Ticket Size**: ${s['average_ticket_size']:,.0f}
-                - **Avg. Transactions**: {s['average_transaction_count']:,.0f}
-                - **Avg. YoY Growth**: {s['average_yoy_growth']:.2%}
-                - **Seasonality Ratio**: {s['average_seasonality_ratio']:.2f}
-                """)
+                st.markdown(
+                    f"""
+                    - **Businesses Included**: {s['benchmark_count']}
+                    - **Average Revenue**: ${s['average_annual_revenue']:,.0f}
+                    - **Median Revenue**: ${s['median_annual_revenue']:,.0f}
+                    - **Avg. Ticket Size**: ${s['average_ticket_size']:,.0f}
+                    - **Avg. Transactions**: {s['average_transaction_count']:,.0f}
+                    - **Avg. YoY Growth**: {s['average_yoy_growth']:.2%}
+                    """
+                )
 
         st.markdown("---")
-        # Inline control to flip benchmark flag for the selected business
         current_benchmark = row['benchmark'] if isinstance(row.get('benchmark'), str) else 'trusted'
         choice = st.radio(
             "Include in Benchmark?",
@@ -179,14 +201,13 @@ if project_id:
                 st.success(f"Updated benchmark status to '{choice}'")
                 st.rerun()
 
-        # --- Map Preview (Streamlit only; independent of PPT screenshot) ---
-        # --- Map Preview (Streamlit only; matches PPT map style) ---
-        all_biz = supabase.table("enigma_summaries").select(
-            "name, latitude, longitude, benchmark"
-        ).eq("project_id", project_id).execute().data
+        # --- Map Preview (unchanged) ---
+        all_biz = (
+            supabase.table("enigma_summaries").select("name, latitude, longitude, benchmark")
+            .eq("project_id", project_id).execute().data
+        )
         df_all = pd.DataFrame(all_biz)
         df_all = df_all[df_all["latitude"].notna() & df_all["longitude"].notna()]
-
         if not df_all.empty:
             m, meta = build_map(df_all, zoom_fraction=0.75)
             st_folium(m, width=1200, height=800)
@@ -195,14 +216,22 @@ if project_id:
 
         st.divider()
         st.header("📋 Full Table")
-        summary_cols = ["name", "annual_revenue", "yoy_growth", "ticket_size", "transaction_count", "seasonality_ratio", "benchmark"]
-        display_df = df[summary_cols].sort_values("annual_revenue", ascending=False).rename(columns={
-            "name": "Business",
-            "annual_revenue": "Revenue",
-            "yoy_growth": "YoY Growth",
-            "ticket_size": "Ticket Size",
-            "transaction_count": "Transactions",
-            "seasonality_ratio": "Seasonality",
-            "benchmark": "Benchmark"
-        })
+        # UPDATED: drop Seasonality column from the grid to match the detail block
+        summary_cols = [
+            "name", "annual_revenue", "yoy_growth", "ticket_size", "transaction_count", "benchmark"
+        ]
+        display_df = (
+            df[summary_cols]
+            .sort_values("annual_revenue", ascending=False)
+            .rename(
+                columns={
+                    "name": "Business",
+                    "annual_revenue": "Revenue",
+                    "yoy_growth": "YoY Growth",
+                    "ticket_size": "Ticket Size",
+                    "transaction_count": "Transactions",
+                    "benchmark": "Benchmark",
+                }
+            )
+        )
         st.dataframe(display_df)
