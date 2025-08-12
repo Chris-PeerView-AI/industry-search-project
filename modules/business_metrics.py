@@ -100,12 +100,31 @@ def generate_enigma_summaries(project_id: str):
             "search_result_id": business_id
         }
 
-        match_res = supabase.table("enigma_businesses").select("id").eq("google_places_id", row.get("place_id")).execute()
+        match_res = supabase.table("enigma_businesses").select("id, match_confidence").eq("google_places_id", row.get("place_id")).execute()
         if match_res.data:
             enigma_business_id = match_res.data[0]["id"]
-            metrics_res = supabase.table("enigma_metrics").select("*").eq("business_id", enigma_business_id).execute()
-            metrics_df = pd.DataFrame(metrics_res.data)
-            enriched.update(extract_business_metrics(metrics_df, row))
+            match_conf = float(match_res.data[0].get("match_confidence") or 0.0)
+
+            # Zero out metrics if confidence < 0.40
+            if match_conf < 0.40:
+                enriched.update({
+                    "annual_revenue": None,
+                    "prior_year_estimate": None,
+                    "yoy_growth": None,
+                    "ticket_size": None,
+                    "transaction_count": None,
+                    "seasonality_ratio": None,
+                    "data_quality": "low",
+                    "benchmark": "low"
+                })
+            else:
+                metrics_res = supabase.table("enigma_metrics").select("*").eq("business_id", enigma_business_id).execute()
+                metrics_df = pd.DataFrame(metrics_res.data)
+                enriched.update(extract_business_metrics(metrics_df, row))
+
+                # Force benchmark to low if confidence < 0.90
+                if match_conf < 0.90:
+                    enriched["benchmark"] = "low"
         else:
             enriched.update(extract_business_metrics(pd.DataFrame(), row))
 
@@ -115,7 +134,7 @@ def generate_enigma_summaries(project_id: str):
 
     for row in out_rows:
         supabase.table("enigma_summaries").insert(row).execute()
-        print("✅ Saved:", row["name"], "| Quality:", row["data_quality"], "| Benchmark:", row["benchmark"])
+        print("✅ Saved:", row["name"], "| Quality:", row.get("data_quality"), "| Benchmark:", row.get("benchmark"))
 
 def summarize_benchmark_stats(project_id: str):
     supabase.table("benchmark_summaries").delete().eq("project_id", project_id).execute()
