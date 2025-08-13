@@ -1,520 +1,284 @@
-# PeerView AI — End‑to‑End Pipeline (Phases 1–3)
+PeerView AI — End‑to‑End Pipeline (Phases 1–3)
 
-A Streamlit + Python system that:
+A Streamlit + Python system for discovering local businesses, enriching them with third‑party data, and generating a polished market benchmarking report (PPTX → merged PDF).
 
-* **Phase 1**: captures project details, uses Google Places to find candidate businesses, and classifies them with an LLM.
-* **Phase 2**: matches each business to **Enigma** OperatingLocation(s), writes a canonical mapping row and **per‑project** metrics into Supabase.
-* **Phase 3**: builds a polished benchmark report (PPTX → merged PDF) including charts, a QA‑stable map, and a narrative summary.
+Phase 1: Capture project details, use Google Places to find candidate businesses, and classify them with a local LLM (Ollama). Store all candidates for review.
 
-This README consolidates how to run all phases, what the schema looks like, and how to debug common issues.
+Phase 2: Match each candidate to Enigma OperatingLocation(s), write a canonical mapping row, and pull per‑project financial metrics.
 
----
+Phase 3: Review/curate trusted businesses, generate exhibits and a QA‑stable map, and export a final deck + merged PDF.
 
-## Quick Start
+Quick Start
 
-1. Set up `.env` (see **Environment**).
-2. **Phase 1** — run the discovery UI to collect Google Places and tier them.
-3. **Phase 2** — run the Enigma UI to match, upsert mapping rows, and fetch metrics per project.
-4. **Phase 3** — run the Review/Export UI to adjust trusted flags and export the final PDF.
+Create and populate a .env (see Environment).
 
----
+Phase 1 — run the discovery UI to collect Google Places and tier them.
 
-## Phase 1 — Project setup & Google Places discovery
+Phase 2 — run the Enigma UI to match, upsert mapping rows, and fetch metrics per project.
 
-**Goal**: create a project, search Google Places for candidate businesses, and classify them (Tier 1..3), storing the results for Phase 2.
+Phase 3 — run the Review/Export UI to adjust trusted flags and export the final PDF.
 
-### Inputs
+Phase 1 — Project setup & Google Places discovery
 
-* **Project**: name, industry (e.g., “Med Spa”), location (e.g., “Memphis, TN”).
-* **Google Places**: Text Search + Place Details using project keywords.
-* **LLM**: classifies each candidate into tiers and tags (e.g., likely in‑industry; borderline; exclude).
+Goal: create a project, search Google Places for candidate businesses, and classify them (Tier 1..3), storing results for later phases.
 
-### Output tables
+Key modules (UI + logic)
 
-* **`search_projects`**
+main_ui.py — Orchestrates the Phase‑1 flow with 3 steps: project setup → Google search + LLM tiering → review (map or manual).
 
-  * `id (uuid)` project identifier
-  * `name, industry, location` (plus optional flags like `active`)
-* **`search_results`** (one row per Google candidate for the project)
+modules/project_config.py — Create or select an existing project (name, industry, location, target count, max radius).
 
-  * `id, project_id (fk)`, `google_places_id`/`place_id`, `name`, `address` (`street, city, state, zip`), `latitude, longitude`
-  * `tier` (1 strong .. 3 weak), `tier_reason`, timestamps
+modules/google_search.py — Geocode the center, generate a spiral grid, query Google Nearby Search at each grid point, then classify and insert results into Supabase.
 
-> Tip: keep Phase‑1 results broad. You can down‑select in Phase 2 before pulling Enigma metrics.
+modules/map_view_review.py — Map preview of all candidates with a search ring radius based on the farthest candidate.
 
----
+modules/review_results.py — Manual review pane with tier filtering, notes, and flags; allows overrides and simple audits.
 
-## Phase 2 — Enigma pull, matching & metrics (per project)
+Data flow (Phase 1)
 
-**Goal**: for each selected Google business, create a canonical **mapping** row to the Enigma OperatingLocation and pull **card/transaction metrics** keyed to the specific project.
+Project config is created or loaded and cached in st.session_state.
 
-### Core components
+Geocode & spiral grid around the center (step size ≈2.5 km) within max_radius_km.
 
-* **UI**: `pull_enigma_ui.py`
+Nearby Search (Google Places) is executed per grid point with a fixed SEARCH_RADIUS_KM (default 5).
 
-  * Shows candidate businesses; includes **Deselect All**; you can push only a few through for testing.
-  * Displays match confidence and reason (e.g., `name_zip_match`).
-* **Puller**: `modules/pull_enigma_data_for_business.py` (v2.2.2)
+Classification via local LLaMA (Ollama) — result is parsed into JSON (tier, category, summary). Optional GPT‑4 re‑audit for Tier 1s if OPENAI_API_KEY is set.
 
-  * GraphQL to Enigma; multi‑variant search; confidence scoring.
-  * Writes mapping row to `enigma_businesses` and **per‑project** metrics to `enigma_metrics`.
-  * Skips metrics for weak matches (`conf < 0.90`).
-  * Logs `[pull] …`, `[match] …`, `[DB] …`, `[metrics] …` for traceability.
+Insert each unique candidate into search_results with project linkage and lat/lng.
 
-### Matching & confidence
+Review on a map (pins colored by tier) or through a manual list with notes and flagging.
 
-* `1.00` — street + city + state agree (and name ≥ 0.85)
-* `0.95` — strong name similarity (≥ 0.93) with ZIP+state agree (city may differ: Memphis vs Germantown)
-* `0.90` — good name (≥ 0.88) with ZIP+state agree
-* `0.80` — street matches, only one of city/state agrees
-* `0.70` — name + city + state match (no zip)
-* else `0.40`
+Supabase tables (Phase 1)
 
-**Behavior**
+search_projects (project header)
 
-* **Mapping** is saved for any score (so you can review/upgrade later).
-* **Metrics** are fetched only for `conf ≥ 0.90`.
-* **Trusted** label in the UI defaults to `conf ≥ 0.95` (presentation‑only; configurable).
+id (uuid) — project identifier
 
-### Supabase schema (Phase 2)
+name — e.g., "Test: Golf Simulators in Northvale"
 
-**`enigma_businesses`** — canonical mapping row per Google Place
+industry — e.g., "Golf Simulators"
 
-* `id (uuid)` **PK** (recommend default `gen_random_uuid()`)
-* `enigma_id` (Enigma OperatingLocation id)
-* `google_places_id`, `place_id`
-* Google fields: `business_name`, `full_address`, `city`, `state`, `zip`
-* Enigma fields: `enigma_name`, `matched_full_address`, `matched_city`, `matched_state`, `matched_postal_code`
-* Pull metadata: `date_pulled (date)`, `pull_session_id (uuid)`, `pull_timestamp (timestamptz)`
-* Match diagnostics: `match_method`, `match_confidence (numeric)`, `match_reason`
+location — e.g., "Northvale, New Jersey"
 
-**Indexes / constraints**
+target_count (int) — target unique businesses to collect
 
-* `enigma_businesses_pkey (id)`
-* `enigma_businesses_google_places_id_key (google_places_id)` **UNIQUE** (conflict target used by code)
-* (Optional) UNIQUE on `place_id` if you want — but a partial unique index may not satisfy `ON CONFLICT`.
+max_radius_km (int) — spiral search reach
 
-**`enigma_metrics`** — per‑project metrics (card revenue, transactions, etc.)
+optional: active (bool), use_gpt_audit (bool)
 
-* `id (uuid)` **PK**
-* `business_id (uuid)` **FK → enigma\_businesses.id**
-* `project_id (uuid)` (associate metrics to the project that pulled them)
-* `quantity_type (text)` e.g., `card_revenue_amount`, `avg_transaction_size`, …
-* `raw_quantity (numeric)`, `projected_quantity (numeric)`
-* `period (text)` e.g., `3m`, `12m`, `2023`, `2024`
-* `period_start_date (date)`, `period_end_date (date)`
-* Pull metadata: `pull_session_id`, `pull_timestamp`, `pull_status`, `pull_notes`
+search_results (candidate businesses discovered per project)
 
-**Indexes / constraints**
+Keys: id (uuid), project_id (uuid), place_id (text)
 
-* `enigma_metrics_pkey (id)`
-* `enigma_metrics_dedupe_project_uidx (business_id, project_id, quantity_type, period, period_end_date)` **UNIQUE** ← required for upsert dedupe per project
+Core fields: name, address, city, state, zip, website, google_maps_url
 
-### Common issues & fixes
+Geo: latitude (float), longitude (float)
 
-* **42P10** `ON CONFLICT` has no matching unique constraint
+LLM/tiering: tier (int), tier_reason (text), category (text)
 
-  * Use `ON CONFLICT (google_places_id)` in code **or** add `UNIQUE (place_id)` (not partial) in DB.
-* **23502** NULL in `enigma_businesses.id`
+Ops: manual_override (bool), notes (text), flagged (bool)
 
-  * Insert must send a UUID; add DB default `gen_random_uuid()` as a safety net.
-* **23503** metrics FK violation
+Optional/derived: page_title (text) (from lightweight scrape)
 
-  * Ensure the mapping row exists and you’re using its `id` for `business_id` before writing metrics.
-* Importing the wrong module version
+Recommended indexes/constraints
 
-  * In the UI: `sys.path.insert(0, modules_dir)` and inspect `inspect.getfile(puller_mod)`.
+CREATE INDEX IF NOT EXISTS search_results_project_idx ON public.search_results(project_id);
+CREATE UNIQUE INDEX IF NOT EXISTS search_results_project_place_uidx
+  ON public.search_results(project_id, place_id);
 
-### Admin SQL (Phase 2)
+Note: We standardize on Google’s place_id in Phase 1. In Phase 2’s mapping table we also include a dedicated google_places_id (alias of place_id) to support upserts and long‑term compatibility.
 
-```sql
--- Create the per‑project metrics dedupe index (one‑time)
+Phase 2 — Enigma matching & per‑project metrics
+
+Goal: for each selected Google business, create a canonical mapping row to the Enigma OperatingLocation and pull card/transaction metrics keyed to the specific project.
+
+Core components
+
+UI: pull_enigma_ui.py (select candidates for pull, show match confidence, reasons, and deselect‑all for test loops).
+
+Puller: modules/pull_enigma_data_for_business.py (GraphQL to Enigma; confidence scoring; mapping upsert; per‑project metrics write).
+
+Matching & confidence (typical policy)
+
+1.00 — street + city + state agree (name ≥ 0.85)
+
+0.95 — name ≥ 0.93 with ZIP+state agree (city may differ)
+
+0.90 — name ≥ 0.88 with ZIP+state agree
+
+0.80 — street matches; only one of city/state agrees
+
+0.70 — name + city + state match (no zip)
+
+else 0.40
+
+Behavior
+
+Mapping is saved for any score (reviewable/upgradeable later).
+
+Metrics are fetched only for conf ≥ 0.90.
+
+Trusted defaults to conf ≥ 0.95 for presentation (configurable).
+
+Supabase schema (Phase 2)
+
+enigma_businesses — canonical mapping per Google Place
+
+id (uuid) PK (default gen_random_uuid())
+
+google_places_id (text) and/or place_id (text) — Google identifier
+
+enigma_id (text) — Enigma OperatingLocation id
+
+Google fields: business_name, full_address, city, state, zip
+
+Enigma fields: enigma_name, matched_full_address, matched_city, matched_state, matched_postal_code
+
+Diagnostics: match_confidence (numeric), match_reason (text), match_method (text)
+
+Pull metadata: date_pulled (date), pull_session_id (uuid), pull_timestamp (timestamptz)
+
+enigma_metrics — per‑project card metrics
+
+Keys: id (uuid), business_id (uuid FK→enigma_businesses.id), project_id (uuid)
+
+Measures: quantity_type (text) (e.g., card_revenue_amount, avg_transaction_size), raw_quantity (numeric), projected_quantity (numeric)
+
+Periods: period (text), period_start_date (date), period_end_date (date)
+
+Ops: pull_session_id, pull_timestamp, pull_status, pull_notes
+
+Upsert & dedupe (required)
+
 CREATE UNIQUE INDEX IF NOT EXISTS enigma_metrics_dedupe_project_uidx
   ON public.enigma_metrics (business_id, project_id, quantity_type, period, period_end_date);
 
--- Drop legacy cross‑project index if present
-DROP INDEX IF EXISTS public.enigma_metrics_dedupe_uidx;
+Phase 3 — Benchmark Review & Report Export
 
--- Optional: default UUID for mapping PK
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-ALTER TABLE public.enigma_businesses ALTER COLUMN id SET DEFAULT gen_random_uuid();
+Goal: curate trusted businesses, preview the map, and export a finalized deck (PPTX) merged into a single PDF.
 
--- Recent rows by project (sanity)
-SELECT project_id, COUNT(*)
-FROM public.enigma_metrics
-WHERE pull_timestamp > NOW() - INTERVAL '2 hours'
-GROUP BY project_id;
+UI & orchestration
 
--- Duplicate check by conflict key (should return 0 rows)
-SELECT business_id, project_id, quantity_type, period, period_end_date, COUNT(*) AS n
-FROM public.enigma_metrics
-GROUP BY 1,2,3,4,5
-HAVING COUNT(*) > 1;
+benchmark_review_ui.py — select project, run DQ, toggle trusted/low, preview the map with a zoom slider, export.
 
--- Residual NULL project_ids (view / cleanup)
-SELECT COUNT(*) FROM public.enigma_metrics WHERE project_id IS NULL;
-DELETE FROM public.enigma_metrics WHERE project_id IS NULL AND pull_timestamp > NOW() - INTERVAL '1 day';
-```
+modules/generate_project_report.py — export_project_pptx(project_id, supabase) builds all slides and merges PDFs.
 
----
+modules/slides_exhibit.py — revenue, YoY, ticket size, market size, map; saves PNGs; stamps them into the Exhibit template.
 
-## Phase 3 — Benchmark Review & Report Export
+modules/slides_summary.py — summary KPIs + LLM narrative; reuses the same map PNG as the map exhibit; appendix business tables.
 
-**Goal**: flag trusted businesses, review stats, preview the map, and export a finalized deck (PPTX) merged into a single PDF.
+modules/convert_slides_to_pdf.py — per‑slide PPTX → PDF → merged final.
 
-### UI
+modules/map_generator.py — stable, aspect‑ratio‑aware Leaflet screenshot pipeline (headless Chrome element capture).
 
-* `benchmark_review_ui.py` — select project, run a one‑time DQ check, toggle trusted/low, preview map (zoom slider), and **Export**.
+Phase‑3 data consumers
 
-### Orchestration
+search_projects — report metadata (industry/location) and selection.
 
-* `generate_project_report.py` → `export_project_pptx(project_id, supabase)` builds:
+enigma_summaries — curated row per matched business used to build exhibits: name, address, annual_revenue (12m), ticket_size, yoy_growth, latitude, longitude, benchmark (trusted/low), search_result_id.
 
-  * Title / Intro / Exhibit Intro
-  * Exhibits (revenue, YoY, ticket size, market size, **map**) with PNG charts
-  * Summary (stats + LLM narrative + **same map PNG** used in exhibits)
-  * Appendix (paginated business tables), Disclosures
-  * Converts all slides to PDF and merges in order
+search_results — lookup details such as tier_reason for appendix.
 
-### Map generation (stability features)
+enigma_metrics — authoritative period_end_date for the “As of {Month YYYY}”.
 
-* Aspect‑ratio aware export (renders PNG to the slide anchor’s ratio)
-* Element‑level screenshot (no browser chrome)
-* Forced viewport via Chrome DevTools Protocol
-* Stable `setView` center (bbox midpoint) and fractional zoom
-* QA guard logs: `[MAP QA] viewport=…`, `[MAP QA] final_png=…`
+Map generation (stability features)
 
-> See the in‑repo module docs for more on chart styles, template placeholders, and map exporter controls.
+Aspect‑ratio aware PNG render to the slide’s ChartAnchor ratio (no rails/cropping surprises).
 
----
+Element‑level screenshot via Selenium of the map HTML element (no window chrome).
 
-## Environment
+Forced viewport via CDP; crisp DPR=1; optional center‑dot overlay for QA.
 
-Set these in `.env`:
+Summary slide reuses the identical map PNG to ensure styling parity.
 
-```
+Environment
+
+Required in .env:
+
 SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+GOOGLE_PLACES_API_KEY=
 ENIGMA_API_KEY=
-GOOGLE_SERVICE_ACCOUNT_FILE=  # for template downloads
-LLM_MODEL=llama3              # used for narrative in Phase 3
-```
+LLM_MODEL=llama3            # for local LLaMA via Ollama
+OPENAI_API_KEY=             # optional: GPT‑4 audit of Tier‑1s in Phase 1
+GOOGLE_SERVICE_ACCOUNT_FILE=# used for downloading PPTX templates (Phase 3)
 
-Optional runtime knobs (env):
+Chrome requirement (Phase 3 map exporter): Headless Chrome + matching chromedriver available on the host.
 
-* `MAP_ZOOM_FRACTION` (default 0.75)
-* `MAP_DEBUG_OVERLAY` (0/1)
-* `MAP_WINDOW_HEIGHT_PX` (default 800)
-* `MAP_STRICT_DIM_CHECK` (default 1)
+How to Run
 
----
+Phase 1 (discovery)
 
-## How to Run
+streamlit run main_ui.py
+# 1) Define or Load Project
+# 2) Run Google Search and Categorize
+# 3) Review Results (Map View or Manual Review)
 
-### Phase 1 (discovery)
+Phase 2 (Enigma match & metrics)
 
-```bash
-streamlit run streamlit_business_browser.py
-# set project, query Google Places, classify with LLM, save candidates
-```
-
-### Phase 2 (Enigma match & metrics)
-
-```bash
 streamlit run pull_enigma_ui.py
 # Deselect all → select a few to test → Submit Selected
 # watch console for [pull]/[match]/[DB]/[metrics]
-```
 
-### Phase 3 (review & export)
+Phase 3 (review & export)
 
-```bash
 streamlit run benchmark_review_ui.py
 # choose project → run DQ → toggle trusted → export PPTX/PDF
-```
 
 Or call the exporter directly:
 
-```python
 from modules.generate_project_report import export_project_pptx, supabase
 export_project_pptx("<project-uuid>", supabase)
-```
-
----
-
-## Troubleshooting Quick Reference
-
-* **ON CONFLICT error (42P10)** → DB lacks a matching UNIQUE constraint. Use `google_places_id` as conflict key or add a constraint on `place_id`.
-* **NULL id (23502)** → Insert must provide `id`; add default `gen_random_uuid()` and/or generate in code.
-* **FK error (23503)** → Write mapping first, then metrics; ensure you’re using the returned `id`.
-* **No metrics for strong match** → Confirm `conf ≥ 0.90`; if city strings differ but ZIP/state match, the score is often 0.95 already.
-* **Wrong module imported** → `sys.path.insert(0, modules_dir)`; print `inspect.getfile(...)` in the UI.
-
----
-
-## Changelog (Aug 2025)
-
-* **Per‑project metrics dedupe**: `ON CONFLICT (business_id, project_id, quantity_type, period, period_end_date)` and a matching UNIQUE index.
-* **Robust mapping writes**: update by `id` if exists; otherwise insert with generated UUID; upsert fallback on `google_places_id`.
-* **Guardrails**: raise if `project_id` missing; verbose logs show project context.
-* **UI**: Deselect‑All button in Phase‑2 list; confidence/quality tags; trusted defaults to `conf ≥ 0.95`.
-
----
-
-## Appendix: Useful SQL Snippets
-
-**Latest trusted mapping per Place**
-
-```sql
-WITH latest_map AS (
-  SELECT eb.*, ROW_NUMBER() OVER (
-    PARTITION BY eb.google_places_id
-    ORDER BY eb.pull_timestamp DESC NULLS LAST, eb.date_pulled DESC NULLS LAST
-  ) rn
-  FROM public.enigma_businesses eb
-)
-SELECT
-  eb.business_name        AS google_name,
-  eb.full_address         AS google_address,
-  eb.city, eb.state, eb.zip,
-  eb.enigma_name,
-  eb.matched_full_address AS enigma_address,
-  eb.matched_city, eb.matched_state, eb.matched_postal_code,
-  eb.match_confidence, eb.match_reason,
-  eb.place_id, eb.enigma_id, eb.pull_timestamp
-FROM latest_map eb
-WHERE rn = 1 AND eb.match_confidence >= 0.95
-ORDER BY eb.business_name;
-```
-
-**Confidence distribution**
-
-```sql
-SELECT
-  CASE
-    WHEN match_confidence >= 0.95 THEN '>=0.95'
-    WHEN match_confidence >= 0.90 THEN '0.90–0.949'
-    WHEN match_confidence >= 0.70 THEN '0.70–0.899'
-    ELSE '<0.70' END AS conf_bucket,
-  match_reason,
-  COUNT(*) AS n
-FROM public.enigma_businesses
-GROUP BY 1,2
-ORDER BY 1 DESC, n DESC;
-```
-
----
-
-## Phase 3 — Benchmark Review & Report Builder (Deep Dive)
-
-**PeerView AI — Benchmark Review & Report Builder** turns Supabase project data (Enigma financials + Google Places metadata) into a polished market benchmarking report (PPTX → merged PDF). It’s built for entrepreneurs and owners to evaluate markets via peer benchmarks, growth, ticket size, market size, and a map—plus a narrative summary.
-
-### What’s new (Aug 2025)
-
-* **Rail‑free map export**: PNG is rendered to the slide’s `ChartAnchor` aspect ratio and captured via **element‑level screenshot** (not the window). No in‑PPT cropping.
-* **Stable centering**: bbox‑midpoint center + fractional zoom. We explicitly call `setView([lat,lng], zoom)` to avoid Leaflet snapping.
-* **Pixel‑locked viewport**: Headless Chrome viewport is forced via CDP and full‑bleed CSS to the requested pixels (prevents 1400×661 style surprises).
-* **QA guard**: after saving the PNG we verify its dimensions vs expected size and log `[MAP QA] ...` lines; env flag can downgrade to warnings.
-* **Consistent assets**: the **Summary** slide reuses the exact Exhibit map PNG, so styling/zoom are identical.
-* **UI zoom knob**: Streamlit slider (`zoom_fraction`) controls the search‑ring height as a % of image; export uses the same value.
-* **Diagnostics**: optional center‑dot overlay, bounded tile wait, DPR=1 for crisp screenshots.
-
-### High‑level workflow
-
-1. Select project in the Streamlit UI.
-2. Run one‑time Data Quality (DQ) and adjust which businesses are included (“trusted”).
-3. Generate report via `export_project_pptx(project_id, supabase)` → creates exhibits, summary, appendix, and disclosures from templates.
-4. Convert all per‑slide PPTX files into a single merged PDF.
-
-### Key Python modules (what they do & what they pass)
-
-1. **`benchmark_review_ui.py`** (Streamlit UI)
-
-   * Pick a project from `search_projects` (optionally filter to `active`).
-   * One‑time DQ check (tracked by `.dq_done` marker + `st.session_state`).
-   * Marks a business *low* if:
-
-     * `annual_revenue < 50,000`
-     * missing/extreme `yoy_growth`
-     * `ticket_size < 30%` or `> 300%` of average
-     * missing `latitude/longitude`
-   * Toggle trusted/low per business; metrics recalc.
-   * **Map Preview** uses `map_generator.build_map(...)` and a zoom slider (0.60–0.90, default 0.75).
-   * On export, the selected zoom is threaded through to the map exporter; the **Summary** slide reuses the same PNG.
-   * **Inputs:** selected `project_id`
-     **Outputs:** updated benchmark flags in Supabase, trigger to `generate_project_report.py`.
-
-2. **`generate_project_report.py`** (orchestration)
-
-   * Entry: `export_project_pptx(project_id, supabase)`
-   * Creates clean output folder: `modules/output/{project_id}`.
-   * Downloads PPTX templates: `modules/download_templates.py`.
-   * Pulls business rows from `enigma_summaries` and metadata from `search_projects`.
-   * Builds slides in order:
-
-     * **Title** (`slides_admin.generate_title_slide`)
-     * **Intro** (copy)
-     * **Exhibit Intro** (copy)
-     * **Exhibits** (revenue, YoY, ticket size, market size, **map**) via `slides_exhibit.py`
-     * **Summary** (stats + LLM narrative + map image) via `slides_summary.py`
-     * **Appendix Intro** (copy)
-     * **Appendix business tables** (paginated) via `slides_summary.generate_paginated_business_table_slides`
-     * **Disclosures** (copy)
-   * Calls `convert_slides_to_pdf.convert_and_merge_slides(...)` to stitch into the final PDF.
-   * **Inputs:** `project_id`, Supabase client
-     **Outputs:** `slide_XX_*.pptx` files and final merged PDF in `modules/output/{project_id}`.
-
-3. **`slides_admin.py`** (title + run‑safe text replacement)
 
-   * `generate_title_slide(output_dir, template_path, city, industry, date_str=None, subtitle=None, add_cover_art=False)`
-   * Replaces placeholders within runs (preserves font/spacing).
-     **Output:** `slide_1_title.pptx`.
-
-4. **`slides_exhibit.py`** (charts, map, and exhibit slides)
-
-   * Matplotlib charts with PeerView defaults (muted; template drives brand). Dynamic headroom avoids label/title collisions.
-   * **Map pipeline**:
+Troubleshooting Quick Reference
 
-     * `generate_map_chart(path, summaries, zoom_fraction=None)` delegates to `map_generator.generate_map_png_from_summaries(...)`.
-     * Reads the `ChartAnchor` aspect ratio from the exhibit template and renders the PNG to that ratio.
-     * On placement, performs a tiny center‑crop to the exact anchor ratio and inserts to fill the anchor (no rails) and center it.
-   * `generate_chart_slide(title, image_path, summary_text)` stamps chart PNG + analysis into the Exhibit template (prefers a shape named `ChartAnchor`; else largest rectangle).
-   * **Inputs:** `summaries` (business dicts), calculated `end_date`
-     **Outputs:** chart PNGs + exhibit PPTX slides.
-
-5. **`slides_summary.py`** (industry summary, LLM narrative, business table)
-
-   * `generate_summary_slide(...)` fills stats + narrative and places the **same** map PNG passed from the exhibit.
-   * `generate_llama_summary(slide_summaries, model_name="llama3")` (via local ollama).
-   * `get_market_size_analysis()` → static text for Market Size exhibit.
-   * `generate_paginated_business_table_slides(output_dir, businesses, base_title)` builds 5‑column tables (Name, Address, Revenue, YoY, Ticket) over multiple slides.
-   * **Inputs:** trusted businesses, end date, precomputed summary stats, `slide_summaries`
-     **Outputs:** `slide_11_market_summary.pptx` + `slide_41_*BusinessTable.pptx` (and subsequent pages).
-
-6. **`convert_slides_to_pdf.py`**
-
-   * Converts each `slide_*.pptx` to PDF and merges in order. Ensures `slide_999_*` (Disclosures) land at the end.
-
-7. **`download_templates.py`**
-
-   * Uses a Google service account to download templates into `modules/`:
+Google quota / warning — Nearby Search returns error_message: retry later or narrow the grid; check API key & billing.
 
-     * `downloaded_title_template.pptx`
-     * `downloaded_intro_template.pptx`
-     * `downloaded_exhibit_intro_template.pptx`
-     * `downloaded_exhibit_template.pptx`
-     * `downloaded_summary_template.pptx`
-     * `downloaded_appendix_intro_template.pptx`
-     * `downloaded_businesstable_template.pptx`
-     * `downloaded_disclosures_template.pptx`
-     * `downloaded_businessview_template.pptx` (optional per‑business slide)
-
-8. **`map_generator.py`** (NEW)
-
-   * Single source of truth for map visuals (Folium + Leaflet + Selenium screenshot).
-   * **Key behaviors**
-
-     * Aspect‑ratio aware rendering: exporter computes `window = (height × anchor_ratio, height)` and renders to that exact pixel size.
-     * Full‑bleed HTML: CSS removes margins/scrollbars and locks the map `<div>`.
-     * Element screenshot: Selenium captures the map element by ID; no window chrome.
-     * Viewport enforcement: CDP forces the viewport to the same `window` size; logs `[MAP QA] viewport=WxH target=WxH`.
-     * Stable zoom & center: fractional zoom stays enabled; center is the bbox midpoint; radius is farthest‑point distance.
-     * QA guard: after writing the PNG, verify dimensions and log `[MAP QA] final_png=WxH expected=WxH` (optional assert).
-   * **Exposed API**
-
-     * `build_map(df, *, zoom_fraction=0.75, window=(w,h)) -> (folium.Map, MapMeta)`
-     * `save_html_and_png(m, html_path, png_path, window=(w,h))`
-     * `generate_map_png_from_summaries(summaries, output_path, *, zoom_fraction=0.75, aspect_ratio=None, window_height_px=800)`
-     * `generate_map_png_from_project(project_id, supabase, output_dir, *, zoom_fraction=0.75, aspect_ratio=None, window_height_px=800)`
-   * **Dependencies**: Headless Chrome + matching chromedriver (Chrome 109+ recommended for CDP viewport overrides).
-
-### Template placeholders (what code expects)
-
-* **Title**: `{TBD INDUSTRY}`, `{TBD LOCATION}`, `{TBD DATE}`, optional `{TBD SUBTITLE}`.
-* **Exhibit**: `{TBD EXHIBIT TITLE}`, `{TBD ANALYSIS}`.
-* **Chart anchor**: a shape named `ChartAnchor` (preferred), else the largest rectangle.
-* **Summary**: `{TBD TITLE}`, `{TBD AS OF DATE}`, `{TBD TOTAL BUSINESSES}`, `{TBD TRUSTED BUSINESSES}`, `{TBD: MEAN REVENUE}`, `{TBD MEDIAN REVENUE}`, `{TBD YOY GROWTH}`, `{TBD AVERAGE TICKET SIZE}`, `{TBD SUMMARY ANALYSIS}`, optional `MapPlaceholder`.
-* **Appendix Table**: title accepts `{TBD Title}` or `{TBD TITLE}`; optional `TableAnchor` for table placement.
-* **Business View (optional)**: `{TBD TITLE}`, `{TBD AS OF DATE}`, `{TBD ADDRESS}`, `{TBD: MEAN REVENUE}`, `{TBD YOY GROWTH}`, `{TBD AVERAGE TICKET SIZE}`, `{TBD SUMMARY ANALYSIS}`.
-
-### Aspect ratio tips
-
-* If you want to rely on defaults, set `ChartAnchor` to **3:2** (matches 1200×800).
-* For widescreen decks, `ChartAnchor` at **16:9** works great; exporter will render to that ratio and the placer will exact‑fit crop to remove any rails.
-* Note: If you round‑trip templates through Google Slides, it can strip shape names. Our code falls back to the largest rectangle and still does exact‑fit placement.
-
-### Supabase schema used (Phase‑3 consumers)
-
-* **`search_projects`**
-
-  * `id (uuid)`, `name`, `industry`, `location`, optional flags like `active`
-* **`enigma_summaries`** (one row per matched business)
-
-  * `id`, `project_id`, `name`, `address`, `annual_revenue (12m)`, `ticket_size`, `yoy_growth`, `transaction_count` (optional), `latitude`, `longitude`, `benchmark` (trusted/low), `search_result_id`
-* **`search_results`** (lookup metadata)
-
-  * `id`, `tier_reason`
-* **`benchmark_summaries`** (optional aggregated stats per project)
-* **`enigma_metrics`** (for end date)
-
-  * `project_id`, `period_end_date` (used by `get_latest_period_end(...)` → “As of {Month YYYY}”)
-
-### Environment & configuration
-
-* `.env` keys: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_SERVICE_ACCOUNT_FILE`, `LLM_MODEL` (defaults `llama3`; via local ollama)
-* Run‑time knobs (env vars):
-
-  * `MAP_ZOOM_FRACTION` — default 0.75 (recommended range 0.60–0.90)
-  * `MAP_DEBUG_OVERLAY` — `1` to draw a tiny red dot at computed center (diagnostics)
-  * `MAP_WINDOW_HEIGHT_PX` — target render height (defaults 800)
-  * `MAP_USE_FRACTIONAL_ZOOM` — set `0` to disable fractional zoom JS
-  * `MAP_STRICT_DIM_CHECK` — default `1`; if `0`, PNG size mismatches warn instead of raise
-* **Output root**: `modules/output/{project_id}` (slide PNGs/PPTX + final PDF)
-* **Chrome requirement**: Headless Chrome + matching chromedriver must be available on the host.
-
-### How to run (quick)
-
-```python
-# 1) Ensure .env is set (Supabase + Google service account + optional LLM_MODEL)
-# 2) Start the UI (optional), OR run the exporter directly:
-from modules.generate_project_report import export_project_pptx, supabase
-export_project_pptx("<your-project-uuid>", supabase)
-# The final PDF path prints at the end (in modules/output/<project-id>/).
-```
-
-**Streamlit UI**
-
-```bash
-streamlit run benchmark_review_ui.py
-# Choose a project, adjust trusted flags, move the Map zoom slider, then Export.
-```
-
-**Test harness (map only)**
-
-```bash
-python modules/TEST_pretty_map.py --project <project-uuid> --loglevel DEBUG
-```
-
-### Style & consistency rules
-
-* Run‑safe text replacement preserves template fonts/spacing.
-* Exhibit charts: muted styling; dynamic headroom.
-* Summary analysis: \~8pt font, line\_spacing=1.1, small space\_after, proper paragraphs.
-* Appendix tables: white, larger title; body \~8pt; row height \~0.25"; page numbers in title.
-* Map: Positron tiles, dashed search radius ring, bbox midpoint center, `trusted = green` markers, others gray.
-
-### Common “gotchas” & troubleshooting
-
-* **Side bars / rails** — ensure the slide’s `ChartAnchor` ratio matches your intent (3:2 or 16:9). Exporter renders to the anchor ratio and captures the **map element**; if rails appear, check `[MAP QA] viewport=... target=...` logs.
-* **PNG size mismatch** (e.g., expected 1400×800 got 1400×661) — headless viewport didn’t match the requested size. Verify Chrome/chromedriver match; logs should show `viewport=1400x800`. Exporter uses CDP to enforce; upgrade Chrome/driver if needed.
-* **Off‑center map** — we use bbox midpoint + `setView([lat,lng], zoom)` to avoid snapping. Turn on `MAP_DEBUG_OVERLAY=1` to visualize center.
-* **Missing geos** — businesses without lat/lng are flagged low by DQ and excluded from trusted exhibits.
-* **Extreme YoY** — filtered by DQ; you can override in the UI.
-* **PNG missing during export** — exporter asserts the expected PNG path after map generation; check Chrome/driver logs if it fails.
-
-### Extending / customizing
-
-* **Add an exhibit**: create a chart function that saves a PNG, then call `generate_chart_slide(title, png, summary_text)`.
-* **Change section order/titles**: edit `generate_project_report.py`.
-* **New placeholder?** Add to the replacement dict in `slides_admin.py` or `slides_summary.py`.
-* **Map tweaks**: adjust legend text/size, marker radius, window height, or the zoom slider bounds in the UI.
+Duplicate candidates — ensure the (project_id, place_id) unique index exists; we also de‑dup in memory by place_id before inserts.
+
+PNG size mismatch (Phase 3 map) — verify Chrome/chromedriver match; the exporter uses CDP to lock viewport size.
+
+ON CONFLICT error (Phase 2) — DB lacks the dedupe unique index for metrics; create enigma_metrics_dedupe_project_uidx.
+
+FK error (Phase 2) — write the mapping row to enigma_businesses and use its id for enigma_metrics.business_id.
+
+Appendix — SQL snippets
+
+Phase‑1 sanity checks
+
+-- Count per project
+SELECT project_id, COUNT(*)
+FROM public.search_results
+GROUP BY 1
+ORDER BY 2 DESC;
+
+-- Tier distribution
+SELECT tier, COUNT(*) FROM public.search_results GROUP BY 1 ORDER BY 1;
+
+-- Flags & overrides
+SELECT COUNT(*) FILTER (WHERE manual_override) AS overrides,
+       COUNT(*) FILTER (WHERE flagged) AS flagged
+FROM public.search_results
+WHERE project_id = '<project-uuid>';
+
+Phase‑2 indices
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+ALTER TABLE public.enigma_businesses ALTER COLUMN id SET DEFAULT gen_random_uuid();
+CREATE UNIQUE INDEX IF NOT EXISTS enigma_metrics_dedupe_project_uidx
+  ON public.enigma_metrics (business_id, project_id, quantity_type, period, period_end_date);
+
+Phase‑3 latest end date
+
+SELECT MAX(period_end_date) FROM public.enigma_metrics WHERE project_id = '<project-uuid>';
+
+Open items to confirm (non‑blocking)
+
+place_id vs google_places_id: keep both in enigma_businesses for clarity? Current recommendation is to store place_id in Phase 1 and mirror it as google_places_id in Phase 2 for upserts.
+
+Map popup fields: do we want to persist scraped headers and Google types on search_results so the map popups can always show them?
+
+Radius strategy: the current Phase 1 flow uses a spiral grid with a fixed 5 km Nearby Search radius per grid point. Do we also want the adaptive radius escalation (e.g., 1 km → 2.5 km → 5 km) behavior discussed earlier?
+
+Tier‑1 audit: keep the optional GPT‑4 audit toggle in Phase 1, or rely only on the local LLaMA model?
+
