@@ -1,93 +1,99 @@
+# ================================
+# FILE: modules/review_results.py
+# PURPOSE (Phase-1, Step 2):
+# - Sort manual review by tier (1..3) then eligibility_score DESC
+# - Show a Details expander with numeric score + reasons
+# ================================
+
+from __future__ import annotations
+
+import json
 import streamlit as st
 from supabase import create_client
 import os
 from dotenv import load_dotenv
-from collections import Counter
 
-# Load environment
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def review_and_edit(project_config):
-    project_id = project_config["id"]
+def _fmt_reasons(r):
+    if not r:
+        return ""
+    if isinstance(r, str):
+        return r[:1200]
+    try:
+        return json.dumps(r)[:1200]
+    except Exception:
+        return str(r)[:1200]
 
-    st.subheader("📊 Project Summary")
+def review_and_edit(project: dict):
+    st.subheader("Manual Review")
 
-    # Tier filter UI
-    tiers = st.multiselect("Filter by Tier", [1, 2, 3], default=[1, 2, 3])
+    # Pull sorted results for this project
+    res = supabase.table("search_results") \
+        .select("*") \
+        .eq("project_id", project["id"]) \
+        .order("tier", ascending=True) \
+        .order("eligibility_score", ascending=False) \
+        .execute()
 
-    # Query with tier filter
-    response = supabase.table("search_results").select("*").eq("project_id", project_id).execute()
-    rows = [r for r in response.data if r.get("tier") in tiers]
+    rows = res.data or []
 
-    if not rows:
-        st.warning("No results found for this project.")
-        return
+    # Filters
+    tier_filter = st.multiselect("Filter by Tier", [1, 2, 3], default=[1, 2, 3])
+    show_flagged = st.checkbox("Show only flagged", value=False)
 
-    # Audit Summary
-    tier_counts = Counter([r.get("tier", 3) for r in response.data])
-    overrides = sum(1 for r in response.data if r.get("manual_override"))
-    flagged = sum(1 for r in response.data if r.get("flagged"))
+    filtered = [
+        r for r in rows
+        if (r.get("tier") in tier_filter) and (not show_flagged or r.get("flagged"))
+    ]
 
-    st.markdown(f"""
-    - **Tier Counts**: {dict(tier_counts)}
-    - **Manual Overrides**: {overrides}
-    - **Flagged for Follow-Up**: {flagged}
-    """)
+    st.write(f"{len(filtered)} businesses shown")
 
-    st.caption(f"Reviewing {len(rows)} filtered businesses")
+    for row in filtered:
+        tier = row.get("tier", 3)
+        name = row.get("name", "Unknown")
+        url = row.get("google_maps_url")
+        website = row.get("website")
+        score = row.get("eligibility_score")
+        reasons = row.get("score_reasons")
+        tier_reason = row.get("tier_reason", "")
 
-    updated = []
+        with st.expander(f"[T{tier}] {name}"):
+            c1, c2 = st.columns([3, 2])
 
-    for row in rows:
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            with st.expander(f"▶ **{row['name']}**", expanded=False):
-                st.markdown(f"Tier {row.get('tier', 3)}: {row.get('tier_reason', '')}")
-                note = st.text_area(f"Notes for {row['id'][:8]}", value=row.get("notes", ""))
-                flagged = st.checkbox("🚩 Flag for follow-up", value=row.get("flagged", False), key=f"flag-{row['id']}")
+            with c1:
+                st.write(row.get("address", ""))
+                st.write(f"{row.get('city','')}, {row.get('state','')} {row.get('zip','')}")
+                if url:
+                    st.link_button("Open in Google Maps", url)
+                if website:
+                    st.link_button("Open Website", website)
 
-                if row.get("page_title"):
-                    st.markdown(f"**Page Title**: {row['page_title']}")
-                if row.get("website"):
-                    st.markdown(f"[Visit Website]({row['website']})", unsafe_allow_html=True)
-                if row.get("google_maps_url"):
-                    st.markdown(f"[View on Google Maps]({row['google_maps_url']})", unsafe_allow_html=True)
-                if row.get("category"):
-                    st.markdown(f"_LLM Category_: `{row['category']}`")
+            with c2:
+                st.write(f"**Tier**: {tier}")
+                st.write(f"**Reason**: {tier_reason or '—'}")
 
-        with col2:
-            current_tier = row.get("tier", 3)
-            new_tier = st.selectbox(
-                f"Tier for {row['id'][:8]}",
-                options=[1, 2, 3],
-                index=current_tier - 1 if current_tier in [1, 2, 3] else 2,
-                key=row["id"]
-            )
+                with st.expander("Details (score & reasons)", expanded=False):
+                    st.write(f"**Eligibility score**: {score if score is not None else '—'}")
+                    st.code(_fmt_reasons(reasons))
 
-            if (
-                new_tier != current_tier
-                or note != row.get("notes")
-                or flagged != row.get("flagged")
-            ):
-                updated.append({
-                    "id": row["id"],
-                    "tier": new_tier,
-                    "notes": note,
-                    "flagged": flagged,
-                    "manual_override": True
-                })
-
-    if updated:
-        if st.button("Save Changes"):
-            for u in updated:
-                supabase.table("search_results").update({
-                    "tier": u["tier"],
-                    "manual_override": True,
-                    "notes": u["notes"],
-                    "flagged": u["flagged"]
-                }).eq("id", u["id"]).execute()
-            st.success("Changes saved.")
-            st.rerun()
+            # Manual overrides
+            cols = st.columns(4)
+            with cols[0]:
+                new_tier = st.selectbox("Set Tier", [1, 2, 3], index=[1,2,3].index(tier), key=f"tier_{row['id']}")
+            with cols[1]:
+                flagged = st.checkbox("Flag", value=bool(row.get("flagged", False)), key=f"flag_{row['id']}")
+            with cols[2]:
+                notes = st.text_input("Notes", value=row.get("notes",""), key=f"notes_{row['id']}")
+            with cols[3]:
+                if st.button("Save", key=f"save_{row['id']}"):
+                    supabase.table("search_results").update({
+                        "tier": new_tier,
+                        "manual_override": True if new_tier != tier else row.get("manual_override", False),
+                        "flagged": flagged,
+                        "notes": notes,
+                    }).eq("id", row["id"]).execute()
+                    st.success("Saved.")

@@ -11,14 +11,18 @@ from __future__ import annotations
 import streamlit as st
 from dotenv import load_dotenv
 
-# Your modules
+# Project helpers (you already have these in your repo)
+from modules.project_config import get_or_create_project, select_existing_project
+
+# Google/Search step (Step 1/2 functions live here)
 from modules.google_search import (
     search_and_expand,
     _finalize_profile,
     _render_preview,
     geocode_location,
 )
-from modules.project_config import get_or_create_project, select_existing_project
+
+# Review & Map
 from modules.review_results import review_and_edit
 from modules.map_view_review import map_review
 
@@ -29,7 +33,7 @@ load_dotenv()
 st.set_page_config(page_title="Industry Market Search Tool", layout="wide")
 st.title("Industry/Market Google API & Enigma Pull Project")
 
-# Session state
+# Step state
 if "step" not in st.session_state:
     st.session_state.step = 0
 if "project_config" not in st.session_state:
@@ -59,8 +63,7 @@ if st.session_state.step == 0:
     with col_left:
         st.subheader("New Project")
 
-        # get_or_create_project renders the standard fields and returns a dict on "Create"
-        created = get_or_create_project(
+        base_project = get_or_create_project(
             default_name="Test: Golf Simulators in Northvale",
             default_industry="Golf Simulators",
             default_location="Northvale, New Jersey",
@@ -69,15 +72,14 @@ if st.session_state.step == 0:
         )
 
         # If user just created a new base project, keep it
-        if created:
-            st.session_state.project_config = created
+        if base_project:
+            st.session_state.project_config = base_project
 
         proj = st.session_state.project_config
         if proj:
             st.success("Project created. Configure options below and choose what to do next.")
 
-        # Always show options if we have a project (no separate 'advanced' area)
-        if proj:
+            # Always show options (no separate 'advanced' area)
             st.markdown("### Options")
 
             # LLM profile + focus (always visible)
@@ -85,7 +87,7 @@ if st.session_state.step == 0:
                 "Enable LLM industry profile",
                 value=st.session_state.use_llm_profile,
             )
-            c1, c2 = st.columns([3, 1], vertical_alignment="bottom")
+            c1, c2 = st.columns([3, 1])
             with c1:
                 st.session_state.focus_detail = st.text_input(
                     "Brand/Subtype focus (optional)",
@@ -130,8 +132,10 @@ if st.session_state.step == 0:
                 "preview_mode": (st.session_state.action == "Preview first"),
                 "search_radius_km": float(st.session_state.search_radius_km),
                 "grid_step_km": float(st.session_state.grid_step_km),
-                "breadth": project_with_opts.get("breadth", "normal"),
             })
+            # keep breadth stable if present; default to "normal"
+            project_with_opts["breadth"] = project_with_opts.get("breadth", "normal")
+
             st.session_state.project_config = project_with_opts
 
             # Continue button (single, stable trigger)
@@ -148,6 +152,7 @@ if st.session_state.step == 0:
         existing = select_existing_project()
         if existing:
             st.session_state.project_config = existing
+            # Existing projects go straight to review
             st.session_state.step = 2
             st.rerun()
 
