@@ -1,302 +1,465 @@
+# ================================
+# FILE: modules/google_search.py
+# PURPOSE (Phase-1, Step 1):
+# - Build an LLM-assisted discovery profile (defaults -> optional LLM -> merge)
+# - Persist profile_json to search_projects
+# - Provide a Preview gate (plan + rubric) that requires approval before running
+# - Use profile-derived type_hint/keyword for Google Nearby (fixed radius)
+# - Keep existing classification approach (light LLM pass) for now
+# ================================
+
+from __future__ import annotations
+
 import os
+import re
 import json
+import time
 import asyncio
 import requests
 from uuid import uuid4
-from typing import Dict, Any, List, Tuple
-import streamlit as st
-import re
-from supabase import create_client
-from dotenv import load_dotenv
 from math import cos, radians
+from typing import Any, Dict, List, Optional, Tuple
 
-# Load environment
+import streamlit as st
+from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from supabase import create_client, Client
+
+# ---- Borrow core planning/profile helpers from phase1_lib ----
+try:
+    from modules.phase1_lib import (
+        IndustrySettings,
+        DiscoveryParams,
+        KNOWN_TYPES,
+        default_settings_for_industry,
+        build_profile_prompt,
+        ollama_generate_profile_json,
+        validate_profile_json,
+        merge_profile,
+        plan_queries,
+        explain_scoring_rules,
+        compose_keyword,
+    )
+except Exception:
+    # fallback if your project keeps phase1_lib at repo root
+    from phase1_lib import (
+        IndustrySettings,
+        DiscoveryParams,
+        KNOWN_TYPES,
+        default_settings_for_industry,
+        build_profile_prompt,
+        ollama_generate_profile_json,
+        validate_profile_json,
+        merge_profile,
+        plan_queries,
+        explain_scoring_rules,
+        compose_keyword,
+    )
+
+# ---- Environment ----
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_PLACES_API_KEY")
-SEARCH_RADIUS_KM = 5
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama3")
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+SEARCH_RADIUS_KM_DEFAULT = 5.0  # fixed radius strategy per your decision
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    st.warning("Supabase credentials not set. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env")
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+
+# -------------------------------------------------------------
+# Google helpers
+# -------------------------------------------------------------
 
 def geocode_location(location: str) -> Tuple[float, float]:
+    """Geocode human-readable address to (lat, lng)."""
     url = "https://maps.googleapis.com/maps/api/geocode/json"
     params = {"address": location, "key": GOOGLE_API_KEY}
-    r = requests.get(url, params=params)
-    results = r.json().get("results", [])
+    resp = requests.get(url, params=params, timeout=20)
+    data = resp.json()
+    results = data.get("results", [])
     if not results:
-        raise ValueError("Unable to geocode location.")
+        raise ValueError(f"Unable to geocode location: {data.get('status')}")
     loc = results[0]["geometry"]["location"]
-    return loc["lat"], loc["lng"]
+    return float(loc["lat"]), float(loc["lng"])
 
-def generate_grid(center_lat: float, center_lng: float, max_radius_km: int) -> List[Tuple[float, float]]:
-    points = [(center_lat, center_lng)]  # always include center point
-    step_km = 2.5
+
+def generate_grid(center_lat: float, center_lng: float, max_radius_km: float, step_km: float = 2.5) -> List[Tuple[float, float]]:
+    """Simple square spiral-ish grid. Always includes center point."""
+    pts: List[Tuple[float, float]] = [(center_lat, center_lng)]
     steps = int(max_radius_km / step_km)
-    deg_step_lat = step_km / 110.574
-    deg_step_lng = step_km / (111.320 * cos(radians(center_lat)))
+    dlat = step_km / 110.574
+    dlng = step_km / (111.320 * max(1e-9, cos(radians(center_lat))))
 
-    seen = set()
-
+    seen = {(center_lat, center_lng)}
     for ring in range(1, steps + 1):
         for dx in range(-ring, ring + 1):
             for dy in range(-ring, ring + 1):
+                # edges of the ring only
                 if abs(dx) != ring and abs(dy) != ring:
-                    continue  # only edge of the ring
-                lat = center_lat + dy * deg_step_lat
-                lng = center_lng + dx * deg_step_lng
+                    continue
+                lat = center_lat + dy * dlat
+                lng = center_lng + dx * dlng
                 if (lat, lng) not in seen:
+                    pts.append((lat, lng))
                     seen.add((lat, lng))
-                    points.append((lat, lng))
-    return points
+    return pts
 
-def google_nearby_search(query: str, lat: float, lng: float, radius_km: int) -> List[Dict[str, Any]]:
+
+def google_nearby_search(keyword: str, lat: float, lng: float, radius_km: float, type_hint: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Nearby Search with optional `type` and required compact `keyword`.
+    Uses a fixed radius (km) per Phase-1 decision.
+    """
     url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-    params = {
+    params: Dict[str, Any] = {
         "location": f"{lat},{lng}",
-        "radius": radius_km * 1000,
-        "keyword": query,
+        "radius": int(radius_km * 1000),
+        "keyword": keyword,
         "key": GOOGLE_API_KEY,
     }
-    all_results = []
-    try:
-        while True:
-            r = requests.get(url, params=params)
-            data = r.json()
+    if type_hint:
+        params["type"] = type_hint
 
-            if 'error_message' in data:
-                st.warning(f"Google API warning: {data['error_message']}")
-                break
+    all_results: List[Dict[str, Any]] = []
+    while True:
+        r = requests.get(url, params=params, timeout=30)
+        data = r.json()
 
-            results = data.get("results", [])
-            all_results.extend(results)
-            token = data.get("next_page_token")
-            if token:
-                import time
-                time.sleep(2)
-                params["pagetoken"] = token
-            else:
-                break
-    except Exception as e:
-        st.error(f"Google Nearby Search failed: {e}")
+        if "error_message" in data:
+            st.warning(f"Google API warning: {data['error_message']}")
+            break
+
+        results = data.get("results", []) or []
+        all_results.extend(results)
+
+        token = data.get("next_page_token")
+        if not token:
+            break
+
+        # next_page_token requires delay + replacements of parameters
+        time.sleep(2.0)
+        params = {"pagetoken": token, "key": GOOGLE_API_KEY}
     return all_results
 
-def scrape_site(url: str) -> Dict[str, str]:
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        return {
-            "page_title": soup.title.string if soup.title else "",
-            "meta_description": (soup.find("meta", attrs={"name": "description"}) or {}).get("content", ""),
-            "headers": " ".join(h.get_text(strip=True) for h in soup.find_all(re.compile("h[1-3]"))),
-            "visible_text_blocks": " ".join(p.get_text(strip=True) for p in soup.find_all("p"))[:2000],
-        }
-    except Exception:
-        return {}
 
 def get_place_details(place_id: str) -> Dict[str, Any]:
+    """Fetch details for a place_id (safe fields only)."""
     url = "https://maps.googleapis.com/maps/api/place/details/json"
     params = {
         "place_id": place_id,
         "key": GOOGLE_API_KEY,
-        "fields": "address_components,type,formatted_phone_number,opening_hours,editorial_summary"
+        "fields": "address_components,types,formatted_phone_number,opening_hours,editorial_summary,website",
     }
     try:
-        r = requests.get(url, params=params)
-        return r.json().get("result", {})
+        r = requests.get(url, params=params, timeout=30)
+        return r.json().get("result", {}) or {}
     except Exception:
         return {}
 
-def build_prompt(industry: str, business: Dict[str, Any], scraped: Dict[str, Any], place_details: Dict[str, Any]) -> str:
-    return f"""
-You are an expert business analyst. Return ONLY valid JSON in your reply.
+# -------------------------------------------------------------
+# Web scraping (safe & bounded)
+# -------------------------------------------------------------
 
-Your job is to classify how well this business matches the user's request: '{industry}'
+def scrape_site(url: str) -> Dict[str, str]:
+    """Lightweight scrape: title, meta description, h1-h3, short body sample."""
+    if not url:
+        return {}
+    try:
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(url, headers=headers, timeout=8)
+        ctype = (r.headers.get("Content-Type") or "").lower()
+        if "text/html" not in ctype:
+            return {}
+        soup = BeautifulSoup(r.text, "html.parser")
+        page_title = soup.title.string if soup.title else ""
+        meta_desc = (soup.find("meta", attrs={"name": "description"}) or {}).get("content", "") or ""
+        headers_text = " ".join(h.get_text(strip=True) for h in soup.find_all(re.compile("h[1-3]")))[:2000]
+        visible_text = " ".join(p.get_text(strip=True) for p in soup.find_all("p"))[:2000]
+        return {
+            "page_title": page_title,
+            "meta_description": meta_desc,
+            "headers": headers_text,
+            "visible_text_blocks": visible_text,
+        }
+    except Exception:
+        return {}
 
-Use the following logic:
-- Tier 1: The business exclusively or primarily offers this service. It should be the main reason someone visits the business.
-- Tier 2: The service is offered but not the primary focus. It may be one of many services or part of a larger complex.
-- Tier 3: Irrelevant or unrelated. A simple mention is not sufficient.
+# -------------------------------------------------------------
+# Profile builder + persistence + preview gate
+# -------------------------------------------------------------
 
-Output format:
-{{
-  "tier": 1,
-  "category": "string",
-  "summary": "short 1-2 sentence summary",
-        }}
+def _finalize_profile(project: Dict[str, Any]) -> Tuple[IndustrySettings, Dict[str, Any], Optional[str], Optional[str]]:
+    """Build a discovery profile from defaults and optional LLM, then persist on project.
+    Returns (settings, profile_json, type_hint, keyword).
+    """
+    industry = (project.get("industry") or "").strip()
+    location = (project.get("location") or "").strip()
+    use_llm_profile = bool(project.get("use_llm_profile", True))
+    focus_detail = project.get("focus_detail")
+    focus_strict = bool(project.get("focus_strict", False))
 
-Business Name: {business.get("name", "")}
-Page Title: {scraped.get("page_title", "")}
-Meta Description: {scraped.get("meta_description", "")}
-Headers: {scraped.get("headers", "")}
-Visible Text Blocks: {scraped.get("visible_text_blocks", "")}
-Google Place Types: {place_details.get("types", [])}
-Phone: {place_details.get("formatted_phone_number", "")}
-Hours: {place_details.get("opening_hours", {}).get("weekday_text", [])}
-Editorial Summary: {place_details.get("editorial_summary", {}).get("overview", "")}
-""".strip()
+    # 1) Defaults by industry
+    settings = default_settings_for_industry(industry)
 
-async def call_llm(prompt: str) -> str:
+    # 2) Optional LLM profile → validate → merge
+    if use_llm_profile:
+        prompt = build_profile_prompt(industry, location, KNOWN_TYPES)
+        prof_raw = ollama_generate_profile_json(LLM_MODEL, OLLAMA_URL, prompt, temperature=0.2)
+        prof = validate_profile_json(prof_raw or {}, KNOWN_TYPES)
+        if prof:
+            settings = merge_profile(settings, prof)
+
+    # 3) Compose query knobs for Google
+    type_hint, keyword = compose_keyword(settings, focus_detail, focus_strict)
+
+    # 4) Persist concise profile JSON onto project
+    profile_json = {
+        "type_hint": type_hint,
+        "keyword": keyword,
+        "allow_types": sorted(list(settings.allow_types)),
+        "soft_deny_types": sorted(list(settings.soft_deny_types)),
+        "name_positive": sorted(list(settings.name_positive)),
+        "name_negative": sorted(list(settings.name_negative)),
+        "include_keywords": sorted(list(settings.include_keywords)),
+        "exclude_keywords": sorted(list(settings.exclude_keywords)),
+        "early_open_hour": settings.early_open_hour,
+        "weights": settings.weights,
+        "threshold_candidates": settings.threshold_candidates,
+        "floor_ratio": settings.floor_ratio,
+        "profile_source": getattr(settings, "profile_source", "defaults"),
+        "focus_detail": focus_detail,
+        "focus_strict": focus_strict,
+    }
+
+    try:
+        if supabase:
+            supabase.table("search_projects").update({
+                "profile_json": profile_json,
+                "use_llm_profile": use_llm_profile,
+            }).eq("id", project["id"]).execute()
+    except Exception as e:
+        st.warning(f"Could not persist profile_json on project: {e}")
+
+    return settings, profile_json, type_hint, keyword
+
+
+def _render_preview(
+    center_lat: float,
+    center_lng: float,
+    project: Dict[str, Any],
+    settings: IndustrySettings,
+    type_hint: Optional[str],
+    keyword: Optional[str],
+) -> bool:
+    """Render a preview of the plan (grid + sample Nearby URLs) and scoring rubric.
+    Returns True if the user clicked Approve & Run.
+    """
+    params = DiscoveryParams(
+        breadth=project.get("breadth", "normal"),
+        target_count=int(project.get("target_count", 20)),
+        max_radius_km=float(project.get("max_radius_km", 25.0)),
+        grid_step_km=float(project.get("grid_step_km", 2.5)),
+    )
+    plan = plan_queries(
+        (center_lat, center_lng),
+        params,
+        settings,
+        focus_detail=project.get("focus_detail"),
+        focus_strict=bool(project.get("focus_strict", False)),
+    )
+
+    st.subheader("Preview: Discovery Plan")
+    st.caption("No API calls will be made until you approve.")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown("**Search knobs**")
+        st.json({
+            "type_hint": type_hint,
+            "keyword": keyword,
+            "search_radius_km": float(project.get("search_radius_km", SEARCH_RADIUS_KM_DEFAULT)),
+            "grid_step_km": float(project.get("grid_step_km", 2.5)),
+            "max_radius_km": float(project.get("max_radius_km", 25.0)),
+        })
+    with c2:
+        st.markdown("**Grid (sample)**")
+        preview = plan.get("grid_preview", [])
+        st.write(f"Grid nodes planned: {plan.get('grid_nodes', 0)}; showing {len(preview)} sample queries")
+        for i, q in enumerate(preview, start=1):
+            st.code(
+                f"{i:02d}. location={q['location']} radius={q['radius']} type={q.get('type')} keyword={q.get('keyword')}\n"
+                f"     e.g., {q['sample_url']}"
+            )
+
+    st.markdown("**Scoring rubric (used in the next step)**")
+    for line in explain_scoring_rules(settings, project.get("focus_detail"), bool(project.get("focus_strict", False))):
+        st.write("- ", line)
+
+    return st.button("✅ Approve & Run", type="primary")
+
+# -------------------------------------------------------------
+# Light classification (kept similar to existing, Step 1 scope)
+# -------------------------------------------------------------
+
+async def _ollama_json(prompt: str) -> Dict[str, Any]:
+    """Call local Ollama and parse JSON from response."""
     proc = await asyncio.create_subprocess_exec(
-        "ollama", "run", os.getenv("LLM_MODEL", "llama3"),
+        "ollama", "run", LLM_MODEL,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, _ = await proc.communicate(input=prompt.encode("utf-8"))
-    raw_output = stdout.decode("utf-8").strip()
-    match = re.search(r"```json\n(.*?)```", raw_output, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-    brace_match = re.search(r"\{.*\}", raw_output, re.DOTALL)
-    return brace_match.group(0).strip() if brace_match else raw_output
+    raw = stdout.decode("utf-8").strip()
 
-def insert_result(project_id: str, result: Dict[str, Any]):
+    # Try to extract a JSON block
+    m = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", raw)
+    if not m:
+        m = re.search(r"(\{[\s\S]*\})", raw)
     try:
-        supabase.table("search_results").insert(result).execute()
+        return json.loads(m.group(1)) if m else {"tier": 3, "summary": raw[:400]}
+    except Exception:
+        return {"tier": 3, "summary": raw[:400]}
+
+
+def _llm_classify_prompt(industry: str, biz: Dict[str, Any], scraped: Dict[str, Any], details: Dict[str, Any]) -> str:
+    return f"""
+You are an expert business analyst. Return ONLY valid JSON in your reply.
+
+Your job is to classify how well this business matches the user's request: "{industry}"
+
+Definitions:
+- Tier 1: The business primarily offers this service (main reason to visit).
+- Tier 2: The service is offered but not primary.
+- Tier 3: Irrelevant or off-target.
+
+Output JSON:
+{{ "tier": 1, "category": "string", "summary": "short 1-2 sentence reason" }}
+
+Name: {biz.get("name","")}
+Google Types: {details.get("types",[])}
+Website: {details.get("website","") or biz.get("website","")}
+Phone: {details.get("formatted_phone_number","")}
+Hours: {details.get("opening_hours",{}).get("weekday_text",[])}
+Editorial: {details.get("editorial_summary",{}).get("overview","")}
+
+Page Title: {scraped.get("page_title","")}
+Meta Description: {scraped.get("meta_description","")}
+Headers: {scraped.get("headers","")}
+Text: {scraped.get("visible_text_blocks","")}
+""".strip()
+
+# -------------------------------------------------------------
+# Persistence helper
+# -------------------------------------------------------------
+
+def _insert_result(row: Dict[str, Any]) -> None:
+    if not supabase:
+        st.error("Supabase client not initialized.")
+        return
+    try:
+        supabase.table("search_results").insert(row).execute()
     except Exception as e:
         st.error(f"Error saving result: {e}")
 
+# -------------------------------------------------------------
+# Main entry used by the UI
+# -------------------------------------------------------------
+
 def search_and_expand(project: Dict[str, Any]) -> bool:
-    audit_toggle = project.get("use_gpt_audit", False)
-    st.caption("🔒 GPT-4 audit is {} for this project.".format("enabled" if audit_toggle else "disabled"))
-    st.write("Spiral search and categorization starting...")
+    """Plan/Preview (handled in UI) -> Execute Google -> Classify (light) -> Save results."""
+    radius_km = float(project.get("search_radius_km", SEARCH_RADIUS_KM_DEFAULT))
+    grid_step_km = float(project.get("grid_step_km", 2.5))
+    target = int(project.get("target_count", 20))
+    max_radius_km = float(project.get("max_radius_km", 25.0))
 
-    query = project["industry"]
-    location = project["location"]
-    max_radius_km = int(project["max_radius_km"])
-    target = int(project["target_count"])
-    center_lat, center_lng = geocode_location(location)
-    points = generate_grid(center_lat, center_lng, max_radius_km)
+    # Resolve center once here (Preview did this already; this re-checks to avoid state mismatch)
+    center_lat, center_lng = geocode_location(project["location"])
 
-    found = {}
-    progress = st.progress(0, text="Collecting businesses from Google...")
-    for i, (lat, lng) in enumerate(points):
-        progress.progress(i / len(points), text=f"Searching at ({lat:.4f}, {lng:.4f})")
-        results = google_nearby_search(query, lat, lng, SEARCH_RADIUS_KM)
-        new_found = 0
+    # Build + persist profile; compute query knobs (type_hint/keyword)
+    settings, profile_json, type_hint, keyword = _finalize_profile(project)
+
+    # Execute grid (fixed radius strategy)
+    pts = generate_grid(center_lat, center_lng, max_radius_km, step_km=grid_step_km)
+
+    found: Dict[str, Dict[str, Any]] = {}
+    prog = st.progress(0.0, text="Collecting businesses from Google…")
+
+    search_keyword = keyword or project.get("industry") or ""  # compact fallback
+
+    for i, (lat, lng) in enumerate(pts):
+        prog.progress(i / max(1, len(pts)), text=f"Searching at ({lat:.4f}, {lng:.4f})")
+        results = google_nearby_search(search_keyword, lat, lng, radius_km, type_hint=type_hint)
         for r in results:
             pid = r.get("place_id")
             if pid and pid not in found:
                 found[pid] = r
-                new_found += 1
         if len(found) >= target:
             break
-    progress.empty()
 
-    st.write(f"Classifying {len(found)} unique businesses...")
+    prog.empty()
+    st.write(f"Classifying {len(found)} unique businesses…")
 
-    async def process():
-        classify_progress = st.progress(0, text="Classifying with LLM...")
-        total = len(found)
+    async def _process():
+        prog2 = st.progress(0.0, text="Classifying with LLM…")
+        total = max(1, len(found))
         for i, place in enumerate(found.values()):
-            name = place.get("name")
             place_id = place.get("place_id")
-            website = place.get("website") or ""
-            address = place.get("vicinity", "")
-            place_details = get_place_details(place_id)
-            address_components = place_details.get("address_components", [])
-            for comp in address_components:
+            details = get_place_details(place_id)
+            website = details.get("website") or place.get("website") or ""
+            scraped = scrape_site(website) if website else {}
+
+            prompt = _llm_classify_prompt(project["industry"], place, scraped, details)
+            llm = await _ollama_json(prompt)
+
+            # safe address components
+            city = state = zipc = ""
+            for comp in details.get("address_components", []) or []:
                 types = comp.get("types", [])
                 if "locality" in types or "postal_town" in types:
                     city = comp.get("long_name", "")
                 elif "administrative_area_level_1" in types:
                     state = comp.get("short_name", "")
                 elif "postal_code" in types:
-                    zip = comp.get("long_name", "")
-
-            scraped = scrape_site(website) if website else {}
-            place_details = get_place_details(place_id)
-            prompt = build_prompt(query, place, scraped, place_details)
-            raw_response = await call_llm(prompt)
+                    zipc = comp.get("long_name", "")
 
             lat = place.get("geometry", {}).get("location", {}).get("lat", None)
             lng = place.get("geometry", {}).get("location", {}).get("lng", None)
 
-            try:
-                parsed = json.loads(raw_response)
-                tier = int(parsed.get("tier", 3))
-                category = parsed.get("category", "")
-                summary = parsed.get("summary", raw_response)
-            except Exception:
-                tier = 3
-                category = "Unknown"
-                summary = raw_response
+            tier = int(llm.get("tier", 3)) if isinstance(llm, dict) else 3
+            category = (llm.get("category") if isinstance(llm, dict) else "") or ""
+            summary = (llm.get("summary") if isinstance(llm, dict) else "") or ""
 
-
-            result = {
-                "category": category,
-                "page_title": scraped.get("page_title", ""),
-                "google_maps_url": f"https://www.google.com/maps/place/?q=place_id:{place_id}",
+            row = {
                 "id": str(uuid4()),
                 "project_id": project["id"],
-                "name": name,
-                "address": address,
+                "place_id": place_id,
+                "name": place.get("name"),
+                "address": place.get("vicinity", ""),
                 "city": city,
                 "state": state,
-                "zip": zip,
-                "place_id": place_id,
+                "zip": zipc,
                 "website": website,
+                "google_maps_url": f"https://www.google.com/maps/place/?q=place_id:{place_id}",
+                "latitude": lat,
+                "longitude": lng,
+                "category": category,
+                "page_title": scraped.get("page_title", ""),
                 "tier": tier,
                 "tier_reason": summary,
                 "manual_override": False,
-                "latitude": lat,
-                "longitude": lng,
+                # provenance
+                "profile_source": getattr(settings, "profile_source", "defaults"),
             }
-            insert_result(project["id"], result)
-            classify_progress.progress((i + 1) / total, text=f"Processed {i + 1} of {total}")
-        classify_progress.empty()
+            _insert_result(row)
+            prog2.progress((i + 1) / total, text=f"Processed {i + 1} of {total}")
+        prog2.empty()
 
-    asyncio.run(process())
-    st.caption("🔒 GPT-4 audit is disabled by default. Enable only for final checks.")
-    audit_toggle = st.checkbox("Use GPT-4 to recheck Tier 1 results", value=False)
-
-    if audit_toggle and OPENAI_API_KEY:
-        async def call_gpt4(prompt: str) -> str:
-            import openai
-            openai.api_key = OPENAI_API_KEY
-            try:
-                response = await openai.ChatCompletion.acreate(
-                    model="gpt-4-turbo",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3,
-                )
-                return response["choices"][0]["message"]["content"].strip()
-            except Exception as e:
-                return json.dumps({"tier": 1, "summary": f"GPT-4 error: {e}"})
-
-        async def audit_process():
-            st.write("Rechecking Tier 1 businesses with GPT-4...")
-            result = supabase.table("search_results").select("*").eq("project_id", project["id"]).eq("tier", 1).execute()
-            downgraded = []
-            if result.data:
-                audit_progress = st.progress(0, text="Auditing with GPT-4...")
-                for i, row in enumerate(result.data):
-                    place = {"name": row["name"]}
-                    scraped = {"page_title": row.get("page_title", ""), "meta_description": "", "headers": "", "visible_text_blocks": ""}
-                    place_details = {"types": [], "formatted_phone_number": "", "opening_hours": {}, "editorial_summary": {}}
-                    prompt = build_prompt(query, place, scraped, place_details)
-                    response = await call_gpt4(prompt)
-                    try:
-                        parsed = json.loads(response)
-                        new_tier = int(parsed.get("tier", 1))
-                        if new_tier != 1:
-                            supabase.table("search_results").update({"tier": new_tier}).eq("id", row["id"]).execute()
-                            downgraded.append(row["name"])
-                    except:
-                        pass
-                    audit_progress.progress((i + 1) / len(result.data), text=f"Checked {i + 1} of {len(result.data)}")
-                audit_progress.empty()
-                st.success("GPT-4 audit complete.")
-                if downgraded:
-                    st.info(f"GPT-4 downgraded the following: {', '.join(downgraded)}")
-
-        asyncio.run(audit_process())
-
-    elif audit_toggle:
-        st.warning("OPENAI_API_KEY not set in .env file. GPT-4 audit skipped.")
+    asyncio.run(_process())
 
     st.success("All results classified and saved.")
     return True

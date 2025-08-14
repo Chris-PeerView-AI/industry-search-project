@@ -51,34 +51,45 @@ Review on a map (pins colored by tier) or through a manual list with notes and f
 Supabase tables (Phase 1)
 
 search_projects (project header)
-
-id (uuid) — project identifier
-
-name — e.g., "Test: Golf Simulators in Northvale"
-
-industry — e.g., "Golf Simulators"
-
-location — e.g., "Northvale, New Jersey"
-
-target_count (int) — target unique businesses to collect
-
-max_radius_km (int) — spiral search reach
-
-optional: active (bool), use_gpt_audit (bool)
-
+Column	Type	Description
+id	uuid	Project identifier
+name	text	e.g., "Test: Golf Simulators in Northvale"
+industry	text	e.g., "Golf Simulators"
+location	text	e.g., "Northvale, New Jersey"
+target_count	int	Target unique businesses to collect
+max_radius_km	int	Spiral search reach
+active (optional)	bool	Mark active projects
+use_gpt_audit (optional)	bool	Enable GPT-4 Tier-1 audit in Phase-1
+use_llm_profile (optional)	bool	Whether to use the LLM-generated industry profile
+profile_json	jsonb	The finalized profile used for discovery — includes type_hint, keyword, tokens, weights, thresholds, floor_ratio, and profile_source ('defaults' or 'llm')
 search_results (candidate businesses discovered per project)
-
-Keys: id (uuid), project_id (uuid), place_id (text)
-
-Core fields: name, address, city, state, zip, website, google_maps_url
-
-Geo: latitude (float), longitude (float)
-
-LLM/tiering: tier (int), tier_reason (text), category (text)
-
-Ops: manual_override (bool), notes (text), flagged (bool)
-
-Optional/derived: page_title (text) (from lightweight scrape)
+Column	Type	Description
+id	uuid	Row identifier
+project_id	uuid	FK → search_projects.id
+place_id	text	Google Places identifier (primary dedupe key for Phase-1)
+name	text	Business name
+address	text	Street address (formatted)
+city	text	City name
+state	text	State abbreviation
+zip	text	Postal code
+website	text	Business website (if available)
+google_maps_url	text	Direct link to Google Maps listing
+latitude	float	Lat
+longitude	float	Lng
+eligibility_score	int	0–100 numeric score from Phase-1 rubric
+score_reasons	text	Compact list/string of scoring components (auditability)
+profile_source	text	'defaults' or 'llm' — provenance of the scoring profile
+tier	int	Predicted tier (1 = primary target, 2 = secondary, 3 = off-target)
+tier_reason	text	Explanation or summary from LLM or re-audit
+category	text	LLM-predicted category label
+page_title	text	HTML <title> from scrape
+manual_override	bool	True if user manually changed tier
+notes	text	User notes
+flagged	bool	Marked for follow-up
+types (optional)	text[]	Raw Google types array
+headers (optional)	text	Scraped H1–H3 header text
+(derived) matched_enigma_id	text	Filled in Phase-2 mapping
+(derived) metrics_linked	bool	True if metrics exist in enigma_metrics
 
 Recommended indexes/constraints
 
