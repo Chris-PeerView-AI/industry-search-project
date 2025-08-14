@@ -132,6 +132,7 @@ if st.session_state.step == 0:
                 "preview_mode": (st.session_state.action == "Preview first"),
                 "search_radius_km": float(st.session_state.search_radius_km),
                 "grid_step_km": float(st.session_state.grid_step_km),
+                "use_llm_planner": True,  # NEW default; you can expose a toggle later if you want
             })
             # keep breadth stable if present; default to "normal"
             project_with_opts["breadth"] = project_with_opts.get("breadth", "normal")

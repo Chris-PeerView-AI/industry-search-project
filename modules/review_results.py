@@ -1,17 +1,17 @@
 # ================================
 # FILE: modules/review_results.py
-# PURPOSE (Phase-1, Step 2):
+# PURPOSE:
 # - Sort manual review by tier (1..3) then eligibility_score DESC
-# - Show a Details expander with numeric score + reasons
+# - Show a Details expander with numeric score + reasons + web signals
 # ================================
 
 from __future__ import annotations
 
 import json
-import streamlit as st
-from supabase import create_client
 import os
 from dotenv import load_dotenv
+import streamlit as st
+from supabase import create_client
 
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -32,12 +32,18 @@ def review_and_edit(project: dict):
     st.subheader("Manual Review")
 
     # Pull sorted results for this project
-    res = supabase.table("search_results") \
-        .select("*") \
-        .eq("project_id", project["id"]) \
-        .order("tier", ascending=True) \
-        .order("eligibility_score", ascending=False) \
-        .execute()
+    # NOTE: supabase-py uses `desc=` not `ascending=`.
+    qb = (
+        supabase.table("search_results")
+        .select("*")
+        .eq("project_id", project["id"])
+    )
+    try:
+        qb = qb.order("tier", desc=False).order("eligibility_score", desc=True)
+    except TypeError:
+        # fallback for very old clients that don't accept kwargs
+        qb = qb.order("tier").order("eligibility_score", desc=True)
+    res = qb.execute()
 
     rows = res.data or []
 
@@ -60,30 +66,57 @@ def review_and_edit(project: dict):
         score = row.get("eligibility_score")
         reasons = row.get("score_reasons")
         tier_reason = row.get("tier_reason", "")
+        web_signals = row.get("web_signals") or {}
+        schema_types = web_signals.get("schema_types") or []
 
         with st.expander(f"[T{tier}] {name}"):
             c1, c2 = st.columns([3, 2])
 
+            rating = row.get("rating") or row.get("google_rating") or row.get(
+                "eligibility_rating")  # if you later persist rating separately
+            reviews = row.get("user_ratings_total") or row.get("reviews")
+
             with c1:
                 st.write(row.get("address", ""))
-                st.write(f"{row.get('city','')}, {row.get('state','')} {row.get('zip','')}")
-                if url:
-                    st.link_button("Open in Google Maps", url)
-                if website:
-                    st.link_button("Open Website", website)
+                st.write(f"{row.get('city', '')}, {row.get('state', '')} {row.get('zip', '')}")
+                # quick badges
+                badges = []
+                if rating and isinstance(rating, (int, float)):
+                    badges.append(f"⭐ {rating} ({reviews or 0})")
+                if row.get("website"):
+                    badges.append("🌐 website")
+                schema_types = (row.get("web_signals") or {}).get("schema_types") or []
+                if schema_types:
+                    badges.append("schema: " + ", ".join(schema_types[:2]))
+                if badges:
+                    st.caption(" | ".join(badges))
+
+                if row.get("google_maps_url"):
+                    st.link_button("Open in Google Maps", row["google_maps_url"])
+                if row.get("website"):
+                    st.link_button("Open Website", row["website"])
 
             with c2:
-                st.write(f"**Tier**: {tier}")
-                st.write(f"**Reason**: {tier_reason or '—'}")
+                src = row.get("tier_source", "score")
+                conf = row.get("audit_confidence", None)
+                src_str = "LLM override" + (
+                    f" ({conf:.2f})" if isinstance(conf, (int, float)) else "") if src == "llm_override" else "Score"
+                st.write(f"**Tier**: {tier}  ·  **Source**: {src_str}")
+                st.write(f"**Reason**: {row.get('tier_reason') or '—'}")
 
-                with st.expander("Details (score & reasons)", expanded=False):
-                    st.write(f"**Eligibility score**: {score if score is not None else '—'}")
-                    st.code(_fmt_reasons(reasons))
+                with st.expander("Details (score, reasons, web signals)", expanded=False):
+                    st.write(
+                        f"**Eligibility score**: {row.get('eligibility_score') if row.get('eligibility_score') is not None else '—'}")
+                    if schema_types:
+                        st.write(f"**Schema.org types**: {', '.join(schema_types)}")
+                    st.code(_fmt_reasons(row.get('score_reasons')))
 
             # Manual overrides
             cols = st.columns(4)
             with cols[0]:
-                new_tier = st.selectbox("Set Tier", [1, 2, 3], index=[1,2,3].index(tier), key=f"tier_{row['id']}")
+                options = [1, 2, 3]
+                idx = options.index(tier) if tier in options else 2  # safe default -> Tier 3
+                new_tier = st.selectbox("Set Tier", options, index=idx, key=f"tier_{row['id']}")
             with cols[1]:
                 flagged = st.checkbox("Flag", value=bool(row.get("flagged", False)), key=f"flag_{row['id']}")
             with cols[2]:
