@@ -6,6 +6,7 @@
 # - Google Nearby grid execution (fixed radius)
 # - Numeric scoring + dynamic threshold with LLM audit override
 # - Web signals enrichment (Schema.org types) -> small scoring nudge
+# - Broad keyword planner (LLM or fallback) + token alignment to avoid wrong-vertical bias
 # - Persist results to search_results (incl. score, reasons, web_signals)
 # ================================
 
@@ -102,7 +103,7 @@ except Exception:
                 return 1.0
         return 0.0
 
-    def score_candidate(cand: Dict[str, Any], settings: IndustrySettings) -> Tuple[float, Any]:
+    def score_candidate(cand: Dict[str, Any], settings: "IndustrySettings") -> Tuple[float, Any]:
         """
         Returns (score 0..100, reasons).
         Minimal, transparent scoring used only if phase1_lib lacks scoring.
@@ -144,6 +145,21 @@ except Exception:
             penalty = min(2, neg_hits) * per
             score -= penalty
             reasons[f"name_neg(-{int(penalty)})"] = neg_hits
+
+        # Phrase-level negatives from planner (SOFT; recall-first)
+        blob_l = blob.lower()
+        phrase_hits = []
+        for phrase in (cand.get("exclude_phrases") or [])[:12]:
+            ph = (phrase or "").lower()
+            if ph and ph in blob_l:
+                phrase_hits.append(phrase)
+
+        if phrase_hits:
+            penalty_each = 3.0
+            max_penalty = 6.0
+            total_penalty = min(max_penalty, penalty_each * len(phrase_hits))
+            score -= total_penalty
+            reasons[f"name_neg_phrase(-{int(total_penalty)})"] = phrase_hits
 
         # Website presence
         if cand.get("website"):
@@ -191,33 +207,104 @@ except Exception:
         if score >= 50: return 2
         return 3
 
+# ---- helpers ----
+
+def _tokens_from_phrases(phrases):
+    bag = (phrases or [])
+    toks = set()
+    for p in bag:
+        for t in re.split(r"[^a-z0-9]+", (p or "").lower()):
+            if len(t) >= 3:
+                toks.add(t)
+    return toks
+
+
+def _sanitize_keywords(kw_list, breadth):
+    """Filter junk modifiers and overly long phrases; cap by breadth."""
+    junk = {"near me", "best", "cheap", "price", "prices", "hours", "open", "now", "phone", "address", "reviews"}
+    out = []
+    for k in (kw_list or []):
+        s = (k or "").strip()
+        if not s:
+            continue
+        sl = s.lower()
+        if any(j in sl for j in junk):
+            continue
+        if len(sl.split()) > 4:
+            continue
+        out.append(s)
+    cap = {"narrow": 2, "normal": 4, "wide": 8}.get((breadth or "normal").lower(), 4)
+    return out[:cap]
+
+
+def _ensure_weight_floors(settings: "IndustrySettings"):
+    """Make sure core weights aren’t zeroed by an LLM profile merge."""
+    floors = {
+        "website": 5.0,
+        "rating": 5.0,
+        "name_pos": 10.0,
+        "name_neg": -10.0,
+        # keep soft-deny meaningful if provided
+        "soft_deny_types": settings.weights.get("soft_deny_types", -20.0) or -20.0,
+    }
+    for k, v in floors.items():
+        if k not in settings.weights or abs(settings.weights.get(k, 0.0)) < 1e-9:
+            settings.weights[k] = v
+
+
 # ---------------- LLM discovery planner (broad, industry-agnostic) ----------------
+
+def _sanitize_types_against_keywords(settings: "IndustrySettings", planned_keywords, industry: str):
+    """
+    Generic guard: if allow_types tokens don't appear anywhere in industry+keywords,
+    drop them (and lower their weight) so scoring doesn't bias the wrong vertical.
+    """
+    bag = (industry or "") + " " + " ".join(planned_keywords or [])
+    bag = bag.lower()
+
+    def _tokify(s: str):
+        return [t for t in re.split(r"[^a-z0-9]+", (s or "").lower()) if t]
+
+    kept = set()
+    for t in list(getattr(settings, "allow_types", set()) or []):
+        ttoks = _tokify(t)  # e.g., "coffee_shop" -> ["coffee","shop"]
+        if any(tok in bag for tok in ttoks):
+            kept.add(t)
+
+    # If nothing matches, clear allow_types and reduce its weight so score relies on tokens/web signals instead.
+    if not kept:
+        settings.allow_types = set()
+        settings.weights["allow_types"] = min(settings.weights.get("allow_types", 30.0), 10.0)
+        return None  # no type_hint recommended
+    else:
+        settings.allow_types = kept
+        # choose a type_hint deterministically from the kept set (first sorted)
+        return sorted(kept)[0]
+
 
 def _llm_discovery_plan_prompt(industry: str, location: str, focus_detail: Optional[str], breadth: str) -> str:
     return (
         "Plan discovery queries for Google Places Nearby (keyword=...). "
         "Return STRICT JSON with keys:\n"
-        "  keywords: array of 6-20 short, high-recall phrases for this industry\n"
-        "  exclude_keywords: array of 0-10 negatives (e.g., 'used', 'for sale')\n"
+        "  keywords: array of 8-20 short, high-recall phrases for this industry\n"
+        "  exclude_keywords: array of 3-10 negatives (e.g., 'golf course','driving range','mini golf','outdoor')\n"
         "  types_primary: array of 0-5 precise Google place types (optional)\n"
         "  types_secondary: array of 0-10 broad Google place types (optional)\n"
         "Rules:\n"
         "- Keywords MUST be short and specific to finding candidates (no city names).\n"
-        "- Favor phrases customers would search for (e.g., 'indoor golf', 'golf simulator', 'golf lounge').\n"
-        "- Do not include boolean operators or punctuation beyond spaces and apostrophes.\n"
+        "- Include venue phrases (e.g., 'golf lounge','simulator bar','golf studio').\n"
+        "- Include 6-10 brand/product tokens commonly used in this vertical (e.g., vendor names, systems).\n"
         "- If focus_detail is given, include it and 1-3 close variants.\n"
+        "- No boolean operators; just plain phrases.\n"
         f"Industry: {industry}\n"
         f"Location: {location}\n"
         f"Breadth: {breadth}\n"
         f"Focus: {focus_detail or ''}\n\n"
-        '{ "keywords": ["..."], "exclude_keywords": [], "types_primary": [], "types_secondary": [] }'
+        '{ "keywords": ["..."], "exclude_keywords": ["..."], "types_primary": [], "types_secondary": [] }'
     )
 
+
 def _fallback_keyword_plan(industry: str, focus_detail: Optional[str], breadth: str) -> Dict[str, Any]:
-    """
-    Industry-agnostic expansion that does not hardcode vertical logic.
-    Builds variants from the words in the industry name + generic venue suffixes/prefixes.
-    """
     ind = (industry or "").strip()
     tokens = [t for t in re.split(r"[\s/,&-]+", ind.lower()) if t and t.isalpha()]
     base = list(dict.fromkeys([
@@ -227,20 +314,32 @@ def _fallback_keyword_plan(industry: str, focus_detail: Optional[str], breadth: 
         *(f"indoor {w}" for w in tokens),
         *(f"{w} simulator" for w in tokens),
         *(f"{w} simulators" for w in tokens),
+        *(f"{w} training" for w in tokens),
+        *(f"{w} practice" for w in tokens),
     ]))
     if focus_detail:
         base = [focus_detail] + base
-    # de-dup and trim very short tokens
+
+    # Generic excludes derived from common “off-target” patterns;
+    # additionally, if any keyword mentions "golf", exclude course/range noise.
+    excludes = {"for sale", "used", "wholesale", "market", "outdoor"}
+    bag = " ".join(base)
+    if "golf" in bag:
+        excludes.update({"golf course", "driving range", "mini golf", "country club"})
+
+    # Clean and cap by breadth
     base = [k.strip() for k in base if len(k.strip()) >= 3]
-    # breadth → cap number of keywords we’ll try
-    cap = {"narrow": 3, "normal": 6, "wide": 10}.get((breadth or "normal").lower(), 6)
+    cap = {"narrow": 4, "normal": 8, "wide": 12}.get((breadth or "normal").lower(), 8)
+
     return {
-        "keywords": base[: max(3, cap)],
-        "exclude_keywords": [],
+        "keywords": base[:cap],
+        "exclude_keywords": sorted(excludes),
         "types_primary": [],
         "types_secondary": [],
         "source": "fallback",
+        "max_keywords": {"narrow": 2, "normal": 4, "wide": 8}.get(breadth, 4),
     }
+
 
 def _plan_seed_keywords(project: Dict[str, Any], settings: "IndustrySettings") -> Dict[str, Any]:
     """
@@ -268,6 +367,12 @@ def _plan_seed_keywords(project: Dict[str, Any], settings: "IndustrySettings") -
     max_kw = {"narrow": 2, "normal": 4, "wide": 8}.get(breadth, 4)
     plan["max_keywords"] = max_kw
     plan["source"] = plan.get("source") or ("llm" if _which("ollama") else "fallback")
+
+    # soften ambiguous excludes (hybrid-friendly)
+    ambiguous = {"golf lessons", "pro shop", "golf store", "golf equipment rental",
+                 "sporting goods store", "recreation center"}
+    if plan.get("exclude_keywords"):
+        plan["exclude_keywords"] = [p for p in plan["exclude_keywords"] if (p or "").lower() not in ambiguous]
 
     # Persist to project
     try:
@@ -393,7 +498,7 @@ def scrape_site(url: str) -> Dict[str, Any]:
 # Profile builder + persistence + preview gate
 # -------------------------------------------------------------
 
-def _finalize_profile(project: Dict[str, Any]) -> Tuple[IndustrySettings, Dict[str, Any], Optional[str], Optional[str]]:
+def _finalize_profile(project: Dict[str, Any]) -> Tuple["IndustrySettings", Dict[str, Any], Optional[str], Optional[str]]:
     """Build discovery profile (defaults -> optional LLM -> merge), persist it to the project, return knobs."""
     industry = (project.get("industry") or "").strip()
     location = (project.get("location") or "").strip()
@@ -407,12 +512,30 @@ def _finalize_profile(project: Dict[str, Any]) -> Tuple[IndustrySettings, Dict[s
         prompt = build_profile_prompt(industry, location, KNOWN_TYPES)
         prof_raw = ollama_generate_profile_json(LLM_MODEL, OLLAMA_URL, prompt, temperature=0.2)
         prof = validate_profile_json(prof_raw or {}, KNOWN_TYPES)
-        if prof: settings = merge_profile(settings, prof)
+        if prof:
+            settings = merge_profile(settings, prof)
 
-    # ensure a weight exists for schema bonus (won't break if phase1_lib has its own)
+    # ensure baseline weights exist
     settings.weights.setdefault("schema_bonus", 4.0)
+    _ensure_weight_floors(settings)
 
     type_hint, keyword = compose_keyword(settings, focus_detail, focus_strict)
+
+    # Align scoring tokens to planned keywords to avoid wrong-vertical bias
+    kw_plan = _plan_seed_keywords(project, settings)
+    kw_list = (kw_plan.get("keywords") or [])
+    ex_list = kw_plan.get("exclude_keywords") or []
+
+    topic_tokens = _tokens_from_phrases(kw_list + [industry, focus_detail or ""])  # single token set
+
+    # Keep only on-topic existing positives, and augment with high-signal planner tokens
+    base_pos = {t for t in (getattr(settings, "name_positive", set()) or set()) if (t or "").lower() in topic_tokens}
+    derived_pos = {t for t in topic_tokens if t in {"simulator", "indoor", "studio", "lounge", "bay", "suite"}}
+    settings.name_positive = base_pos | derived_pos
+
+    # Negatives from excludes: drop very-generic/on-topic tokens (e.g., 'golf')
+    # Do not convert excludes into token-level negatives; handled as phrase-level penalties in scoring
+    settings.name_negative = set(getattr(settings, "name_negative", set()) or set())
 
     profile_json = {
         "type_hint": type_hint, "keyword": keyword,
@@ -428,6 +551,9 @@ def _finalize_profile(project: Dict[str, Any]) -> Tuple[IndustrySettings, Dict[s
         "floor_ratio": settings.floor_ratio,
         "profile_source": getattr(settings, "profile_source", "defaults"),
         "focus_detail": focus_detail, "focus_strict": focus_strict,
+        # Planner visibility for auditability
+        "planned_keywords": kw_list,
+        "planned_excludes": ex_list,
     }
 
     try:
@@ -440,8 +566,9 @@ def _finalize_profile(project: Dict[str, Any]) -> Tuple[IndustrySettings, Dict[s
 
     return settings, profile_json, type_hint, keyword
 
+
 def _render_preview(center_lat: float, center_lng: float, project: Dict[str, Any],
-                    settings: IndustrySettings, type_hint: Optional[str], keyword: Optional[str]) -> bool:
+                    settings: "IndustrySettings", type_hint: Optional[str], keyword: Optional[str]) -> bool:
     """Render plan preview (no API calls). Return True if user clicks Approve & Run."""
     params = DiscoveryParams(
         breadth=project.get("breadth", "normal"),
@@ -453,37 +580,50 @@ def _render_preview(center_lat: float, center_lng: float, project: Dict[str, Any
                         focus_detail=project.get("focus_detail"),
                         focus_strict=bool(project.get("focus_strict", False)))
 
-    # NEW: discovery keywords plan (broad, industry-agnostic)
+    # discovery keywords plan
     kw_plan = _plan_seed_keywords(project, settings)
-    kw_list = (kw_plan.get("keywords") or [])[: kw_plan.get("max_keywords", 4)]
+    raw_kw_list = (kw_plan.get("keywords") or [])
+    kw_list = _sanitize_keywords(raw_kw_list, (project.get("breadth") or "normal").lower())
+    ex_list = kw_plan.get("exclude_keywords") or []
     src = kw_plan.get("source", "fallback")
+
+    # Sanitize allow_types/type_hint to avoid wrong-vertical boosts in scoring explanation
+    sanitized_type_hint = _sanitize_types_against_keywords(settings, kw_list, project.get("industry", ""))
+    type_hint = sanitized_type_hint  # replace for display
 
     st.subheader("Preview: Discovery Plan")
     st.caption("No API calls will be made until you approve.")
 
     c1, c2 = st.columns(2)
     with c1:
+        est_calls = int((plan.get("grid_nodes", 0) or 0) * len(kw_list))
         st.markdown("**Search knobs**")
         st.json({
             "type_hint (for scoring only)": type_hint,
-            "keyword (legacy single)": keyword,
+            "keyword (legacy single)": (kw_list[0] if kw_list else None),
             "planned_keywords": kw_list,
+            "exclude_keywords": ex_list,
+            "excludes_used_for": "scoring_only",
             "planner_source": src,
             "search_radius_km": float(project.get("search_radius_km", SEARCH_RADIUS_KM_DEFAULT)),
             "grid_step_km": float(project.get("grid_step_km", 2.5)),
             "max_radius_km": float(project.get("max_radius_km", 25.0)),
             "breadth": params.breadth,
+            "est_nearby_calls_max": est_calls,
         })
+    sr_m = int(float(project.get("search_radius_km", SEARCH_RADIUS_KM_DEFAULT)) * 1000)
     with c2:
         st.markdown("**Grid (sample)**")
         preview = plan.get("grid_preview", [])[:5]
-        st.write(f"Grid nodes planned: {plan.get('grid_nodes', 0)}; showing {len(preview)*len(kw_list)} sample queries")
+        st.write(
+            f"Grid nodes planned: {plan.get('grid_nodes', 0)}; showing {len(preview) * len(kw_list)} sample queries")
         for q in preview:
+            loc = q["location"]  # "lat,lng"
             for k in kw_list:
                 st.code(
-                    f"location={q['location']} radius={q['radius']} keyword={k}\n"
+                    f"location={loc} radius={sr_m} keyword={k}\n"
                     f"e.g., https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-                    f"?location={q['location']}&radius={q['radius']}&keyword={requests.utils.quote(k)}&key=<API_KEY>"
+                    f"?location={loc}&radius={sr_m}&keyword={requests.utils.quote(k)}&key=<API_KEY>"
                 )
 
     st.markdown("**Scoring rubric (used next step)**")
@@ -562,8 +702,13 @@ def search_and_expand(project: dict) -> bool:
 
     # grid search (broad, keyword-only to maximize recall)
     kw_plan = _plan_seed_keywords(project, settings)
-    kw_list = (kw_plan.get("keywords") or [])[: kw_plan.get("max_keywords", 4)]
+    raw_kw_list = (kw_plan.get("keywords") or [])
+    kw_list = _sanitize_keywords(raw_kw_list, (project.get("breadth") or "normal").lower())
     exclude_kw = set(kw_plan.get("exclude_keywords") or [])
+
+    # Sanitize types so scoring doesn't award wrong categories
+    type_hint = _sanitize_types_against_keywords(settings, kw_list, project.get("industry", ""))
+
     oversample_factor = float(project.get("oversample_factor", 2.0))
     stop_after = int(max(target, 1) * oversample_factor)
 
@@ -574,8 +719,7 @@ def search_and_expand(project: dict) -> bool:
     for i, (lat, lng) in enumerate(pts):
         prog.progress(i / max(1, len(pts)), text=f"Searching at ({lat:.4f}, {lng:.4f})")
         for k in kw_list:
-            if any(bad in k.lower() for bad in exclude_kw):
-                continue
+            # Excludes are used for scoring only (recall-first)
             results = google_nearby_search(k, lat, lng, radius_km, type_hint=None)  # NOTE: no type filter here
             for r in results:
                 pid = r.get("place_id")
@@ -611,6 +755,7 @@ def search_and_expand(project: dict) -> bool:
             "focus_detail": profile_json.get("focus_detail"),
             "focus_strict": profile_json.get("focus_strict"),
             "industry": project.get("industry", ""),
+            "exclude_phrases": list(exclude_kw),                # NEW: phrase-level negatives for shim scoring
         }
         score, reasons = score_candidate(cand, settings)
         scored_list.append({

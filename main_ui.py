@@ -6,6 +6,98 @@
 # - Only execute Google calls AFTER explicit approval (if Preview) or "Run now"
 # ================================
 
+"""
+Phase-1 UI — Status & TODO (last updated: 2025-08-14)
+
+WHAT WORKS TODAY
+- One-page “New Project” form (no hidden advanced pane):
+  • Inputs: project name, industry, location, target_count, max_radius_km, grid_step_km,
+    fixed search_radius_km, breadth (narrow/normal/wide), oversample_factor,
+    LLM profile on/off, LLM planner on/off, optional brand/subtype focus (+strict).
+  • “Preview first” checkbox: if set, we show a plan page; if clear, we run immediately.
+- Preview Plan gate:
+  • Shows geocode, grid sample, and *multi-keyword* plan (LLM or fallback), with
+    est_nearby_calls_max and the exact URLs we would hit (no API calls yet).
+  • We *do not* pass Google “type” filters during discovery (recall-first).
+  • Type hint is used for SCORING DISPLAY ONLY and is sanitized against keywords.
+  • Planner “exclude_keywords” are **not** used to filter Queries; they’re saved and
+    applied as soft negatives during scoring only (hybrid-friendly).
+- Run (on approval):
+  • Grid execution with fixed search radius, multiple keywords per node, oversample stop.
+  • Place Details fetch; lightweight web scrape (title/meta/H1-H3/body sample + schema.org types).
+  • Numeric scoring (0–100) with transparent reasons (+ small schema.org bonus).
+  • Dynamic Tier-1 threshold via ladder; Tier=1/2/3 assigned from score.
+  • Optional LLM re-audit (ENABLE_LLM_AUDIT=1 and `ollama` present). We confidence-gate:
+      - If LLM disagrees and confidence ≥ 0.70 → override tier.
+      - Else keep score tier and append LLM suggestion to reason.
+- Persistence (Supabase):
+  • `search_projects.profile_json` (profile knobs), `search_projects.planner_json` (keywords plan).
+  • `search_results` rows include: eligibility_score, score_reasons, tier, tier_reason,
+    tier_source (score/llm_override), audit_confidence, web_signals (schema_types),
+    coordinates, maps URL, etc.
+- Review:
+  • “Manual Review” sorted by Tier (1→3). Inside Tier, we sort by LLM confidence (desc) then
+    numeric score (desc). Score & reasons are behind a “Details” toggle.
+  • “Map View” available for spatial inspection.
+
+KNOWN LIMITS / ROUGH EDGES
+- Simulator venues (e.g., Players Club Virtual Golf, Golfzon Social) can land in Tier-3 if reviews are sparse
+  or the page is JS-heavy and we miss body text; name-only evidence isn’t yet explicitly boosted.
+- Planner “exclude_keywords” are treated as soft phrase-level penalties only in the fallback scoring shim.
+  If your `phase1_lib` scoring is present, ensure it mirrors this behavior (recall-first).
+- No query budget guard yet beyond the preview estimate; large grids × many keywords can be slow.
+- De-duplication is currently Places-ID based (Google often dedups for us), not name+distance clustering.
+- No per-industry special heuristics beyond the guardrailed defaults (by design); we rely on LLM+tokens.
+
+NEAR-TERM TODO (SMALL, TESTABLE STEPS)
+1) Simulator Evidence Boost (precision for Tier-1 without brand penalties)
+   - Add helper that detects simulator signals in NAME and WEB (tokens: “golfzon”, “x-golf”, “five iron”,
+     “trackman”, “foresight”, “uneekor”, “trugolf”, “skytrak”, “simulator”, “screen/virtual/indoor golf”,
+     “golf lounge/studio/bay/suite”).
+   - Apply a **score floor** (e.g., ≥62 name-only; ≥68 name+web) so true sim venues clear T1 threshold.
+   - Add a **Tier-1 precision gate**: require any simulator evidence for T1; otherwise keep at T2.
+   - Persist `sim_evidence` on each result; include in LLM audit payload.
+
+2) Planner & Recall Controls
+   - Cap keywords per node based on breadth *and* estimated budget; show a “reduce keywords” prompt if
+     est_nearby_calls_max exceeds a threshold (e.g., 600).
+   - If post-run unique candidates < target/2, auto-expand keyword set (fallback expansions).
+
+3) Scoring Parity (if using phase1_lib’s full scoring)
+   - Mirror “phrase-level soft negatives” behavior (recall-first), schema.org bonus, and website/rating floors.
+   - Ensure type soft-denies only cover *obvious off-targets* (courses/ranges/parks); do not penalize
+     venues typed as bar/restaurant if the name looks like a sim lounge.
+
+4) UX polish
+   - Manual review: add pill badges for brand tokens detected and schema types; expose `audit_confidence`.
+   - Map: cluster markers; color by Tier; hover shows name + quick actions.
+
+5) Ops/Resilience
+   - Rate delay knob in UI; friendly messages for OVER_QUERY_LIMIT/REQUEST_DENIED.
+   - Optional name+distance (≤150m) de-dup pass to collapse chain duplicates.
+
+FLAGS / ENVs TO KNOW
+- GOOGLE_PLACES_API_KEY — required.
+- SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY — required for persistence.
+- OLLAMA_URL / LLM_MODEL — used for local LLM profile/planner/audit.
+- ENABLE_LLM_AUDIT=1|0 — toggles re-audit; planner/profile still okay without it.
+
+SCHEMA ASSUMPTIONS (run the migrations we provided)
+- search_projects: add JSONB columns `profile_json`, `planner_json`, and booleans `use_llm_profile`, `use_llm_planner`.
+- search_results: add columns `eligibility_score` (int), `score_reasons` (text/json),
+  `tier_reason` (text), `tier_source` (text), `audit_confidence` (float),
+  `web_signals` (jsonb). Keep `manual_override` boolean.
+
+HOW TO TEST QUICKLY
+- Try “Golf Simulators” in a suburb (e.g., Northvale, NJ) with breadth=normal, search_radius_km=5,
+  grid_step_km=2.5, oversample_factor=2.0. Use preview to sanity-check calls. Approve & Run, then:
+  • Verify Players Club Virtual Golf / Golfzon Social classification (currently may land T3 → TODO #1).
+  • Check that courses/ranges aren’t T1 (precision gate in TODO #1 will harden this).
+  • In Manual Review, confirm Tier sort and details toggle show reasons/web signals.
+
+Keep this block updated as we iterate. It’s a reference for what’s intentional vs. pending work.
+"""
+
 from __future__ import annotations
 
 import streamlit as st
@@ -133,6 +225,7 @@ if st.session_state.step == 0:
                 "search_radius_km": float(st.session_state.search_radius_km),
                 "grid_step_km": float(st.session_state.grid_step_km),
                 "use_llm_planner": True,  # NEW default; you can expose a toggle later if you want
+                "oversample_factor": 3.0,
             })
             # keep breadth stable if present; default to "normal"
             project_with_opts["breadth"] = project_with_opts.get("breadth", "normal")
