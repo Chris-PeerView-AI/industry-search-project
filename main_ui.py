@@ -7,13 +7,16 @@
 # ================================
 
 """
-Phase-1 UI — Status & TODO (last updated: 2025-08-14)
+Phase-1 UI — Status & TODO (last updated: 2025-08-18)
 
 WHAT WORKS TODAY
 - One-page “New Project” form (no hidden advanced pane):
   • Inputs: project name, industry, location, target_count, max_radius_km, grid_step_km,
     fixed search_radius_km, breadth (narrow/normal/wide), oversample_factor,
     LLM profile on/off, LLM planner on/off, optional brand/subtype focus (+strict).
+  • LLM Tiering controls: enable/disable LLM-only tier selection, choose provider (OpenAI/Ollama),
+    specify tiering model (e.g., gpt-4o-mini or llama3). When enabled, numeric score is used
+    only to rank within a tier; the LLM decides T1/T2/T3.
   • “Preview first” checkbox: if set, we show a plan page; if clear, we run immediately.
 - Preview Plan gate:
   • Shows geocode, grid sample, and *multi-keyword* plan (LLM or fallback), with
@@ -26,15 +29,14 @@ WHAT WORKS TODAY
   • Grid execution with fixed search radius, multiple keywords per node, oversample stop.
   • Place Details fetch; lightweight web scrape (title/meta/H1-H3/body sample + schema.org types).
   • Numeric scoring (0–100) with transparent reasons (+ small schema.org bonus).
-  • Dynamic Tier-1 threshold via ladder; Tier=1/2/3 assigned from score.
-  • Optional LLM re-audit (ENABLE_LLM_AUDIT=1 and `ollama` present). We confidence-gate:
-      - If LLM disagrees and confidence ≥ 0.70 → override tier.
-      - Else keep score tier and append LLM suggestion to reason.
+  • Tier assignment:
+      - If **LLM Tiering** is enabled → LLM picks T1/T2/T3; numeric score ranks within-tier.
+      - If disabled → numeric → optional LLM re-audit override (confidence ≥ 0.70).
 - Persistence (Supabase):
   • `search_projects.profile_json` (profile knobs), `search_projects.planner_json` (keywords plan).
-  • `search_results` rows include: eligibility_score, score_reasons, tier, tier_reason,
-    tier_source (score/llm_override), audit_confidence, web_signals (schema_types),
-    coordinates, maps URL, etc.
+  • `search_results` rows include: website, eligibility_score, score_reasons, predicted_tier (numeric),
+    tier, tier_reason (LLM explanation or numeric/rationale), tier_source, audit_confidence,
+    tier_llm_model (when LLM-tiered), web_signals (schema_types), coordinates, maps URL, etc.
 - Review:
   • “Manual Review” sorted by Tier (1→3). Inside Tier, we sort by LLM confidence (desc) then
     numeric score (desc). Score & reasons are behind a “Details” toggle.
@@ -80,13 +82,15 @@ FLAGS / ENVs TO KNOW
 - GOOGLE_PLACES_API_KEY — required.
 - SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY — required for persistence.
 - OLLAMA_URL / LLM_MODEL — used for local LLM profile/planner/audit.
-- ENABLE_LLM_AUDIT=1|0 — toggles re-audit; planner/profile still okay without it.
+- OPENAI_API_KEY — required if using OpenAI for LLM Tiering (GPT-4 family).
+- ENABLE_LLM_AUDIT=1|0 — toggles re-audit when numeric-tier path is used.
 
 SCHEMA ASSUMPTIONS (run the migrations we provided)
-- search_projects: add JSONB columns `profile_json`, `planner_json`, and booleans `use_llm_profile`, `use_llm_planner`.
+- search_projects: add JSONB columns `profile_json`, `planner_json`, booleans `use_llm_profile`, `use_llm_planner`,
+  and (for tiering) `enable_llm_tiering` (bool), `tier_llm_provider` (text), `tier_llm_model` (text).
 - search_results: add columns `eligibility_score` (int), `score_reasons` (text/json),
-  `tier_reason` (text), `tier_source` (text), `audit_confidence` (float),
-  `web_signals` (jsonb). Keep `manual_override` boolean.
+  `predicted_tier` (int), `tier_reason` (text), `tier_source` (text), `audit_confidence` (float),
+  `tier_llm_model` (text), `web_signals` (jsonb). Keep `manual_override` boolean.
 
 HOW TO TEST QUICKLY
 - Try “Golf Simulators” in a suburb (e.g., Northvale, NJ) with breadth=normal, search_radius_km=5,
@@ -100,6 +104,7 @@ Keep this block updated as we iterate. It’s a reference for what’s intention
 
 from __future__ import annotations
 
+import os
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -122,7 +127,7 @@ from modules.map_view_review import map_review
 # App bootstrap
 # ---------------------------------
 load_dotenv()
-st.set_page_config(page_title="Industry Market Search Tool", layout="wide")
+st.set_page_config(page_title="Industry/Market Google API & Enigma Pull Project", layout="wide")
 st.title("Industry/Market Google API & Enigma Pull Project")
 
 # Step state
@@ -139,9 +144,16 @@ defaults = {
     "search_radius_km": 5.0,
     "grid_step_km": 2.5,
     "action": "Preview first",  # or "Run now"
+    # New LLM-tiering defaults
+    "enable_llm_tiering": False,
 }
 for k, v in defaults.items():
     st.session_state.setdefault(k, v)
+
+# Provider/model defaults for tiering
+st.session_state.setdefault("tier_llm_provider", "ollama")
+st.session_state.setdefault("tier_llm_model", os.getenv("LLM_MODEL", "llama3"))
+st.session_state.setdefault("_last_provider", st.session_state.tier_llm_provider)
 
 # ---------------------------------
 # STEP 0: Single-screen project inputs + options
@@ -207,6 +219,34 @@ if st.session_state.step == 0:
                     value=float(st.session_state.grid_step_km),
                 )
 
+            # --- NEW: LLM Tiering controls (LLM chooses the tier; score ranks within tier)
+            st.markdown("### Tiering (LLM)")
+
+            st.session_state.enable_llm_tiering = st.checkbox(
+                "Use LLM-only for tier selection (score used only for rank within tier)",
+                value=st.session_state.enable_llm_tiering,
+                help="If on, the LLM decides T1/T2/T3 per candidate. Numeric score is still computed and used to order items within the same tier."
+            )
+
+            provider_display = st.selectbox(
+                "Tiering LLM",
+                ["OpenAI (GPT-4 family)", "Ollama (local)"],
+                index=(0 if st.session_state.tier_llm_provider == "openai" else 1),
+            )
+            selected_provider = "openai" if "OpenAI" in provider_display else "ollama"
+
+            # If provider changed, snap the model default appropriately
+            if st.session_state._last_provider != selected_provider:
+                st.session_state.tier_llm_model = "gpt-4o-mini" if selected_provider == "openai" else os.getenv("LLM_MODEL", "llama3")
+                st.session_state._last_provider = selected_provider
+
+            st.session_state.tier_llm_provider = selected_provider
+            st.session_state.tier_llm_model = st.text_input(
+                "Tier LLM model",
+                value=st.session_state.tier_llm_model,
+                help=("Examples: OpenAI → gpt-4o-mini, gpt-4o; Ollama → llama3, mistral, qwen2, etc.")
+            )
+
             # Choose action (Preview vs Run)
             st.session_state.action = st.radio(
                 "Action",
@@ -221,11 +261,18 @@ if st.session_state.step == 0:
                 "use_llm_profile": bool(st.session_state.use_llm_profile),
                 "focus_detail": st.session_state.focus_detail or None,
                 "focus_strict": bool(st.session_state.focus_strict),
+
                 "preview_mode": (st.session_state.action == "Preview first"),
                 "search_radius_km": float(st.session_state.search_radius_km),
                 "grid_step_km": float(st.session_state.grid_step_km),
-                "use_llm_planner": True,  # NEW default; you can expose a toggle later if you want
-                "oversample_factor": 3.0,
+
+                "use_llm_planner": True,        # default on
+                "oversample_factor": 3.0,       # recall-first; safe to tune later
+
+                # NEW: tiering knobs passed to search_and_expand()
+                "enable_llm_tiering": bool(st.session_state.enable_llm_tiering),
+                "tier_llm_provider": st.session_state.tier_llm_provider,
+                "tier_llm_model": st.session_state.tier_llm_model,
             })
             # keep breadth stable if present; default to "normal"
             project_with_opts["breadth"] = project_with_opts.get("breadth", "normal")
@@ -323,6 +370,7 @@ elif st.session_state.step == 2:
 - **Target Count**: {project.get('target_count')}
 - **Max Radius**: {project.get('max_radius_km')} km
 - **LLM Profile**: {"On" if project.get('use_llm_profile') else "Off"}
+- **LLM Tiering**: {"On" if project.get('enable_llm_tiering') else "Off"}{(" · " + (project.get('tier_llm_provider') or "") + " · " + (project.get('tier_llm_model') or "")) if project.get('enable_llm_tiering') else ""}
 """)
 
     view = st.radio("Choose View:", ["Map View", "Manual Review"], horizontal=True)

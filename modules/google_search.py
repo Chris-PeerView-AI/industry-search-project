@@ -4,21 +4,24 @@
 # - LLM-assisted profile builder (+persist to search_projects)
 # - Preview gate (no API calls until approved)
 # - Google Nearby grid execution (fixed radius)
-# - Numeric scoring + dynamic threshold with LLM audit override
-# - Web signals enrichment (Schema.org types) -> small scoring nudge
+# - Numeric scoring for rank ordering (within tier)
+# - Final tier via choose_tier (GPT/Ollama) with fallback to numeric if disabled
+# - Web signals enrichment (Schema.org types) -> small scoring nudge in shim
 # - Broad keyword planner (LLM or fallback) + token alignment to avoid wrong-vertical bias
-# - Persist results to search_results (incl. score, reasons, web_signals)
+# - Persist results to search_results (incl. score, reasons, web_signals, website, tier_reason)
 # ================================
 
 from __future__ import annotations
 
-import os, re, json, time, asyncio
+import os, re, json, time, asyncio, traceback
 from uuid import uuid4
 from math import cos, radians
 from typing import Any, Dict, List, Optional, Tuple, Set
 
 import streamlit as st
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -38,10 +41,27 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     st.warning("Supabase credentials not set. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env")
 
 supabase: Optional[Client] = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
-ENABLE_LLM_AUDIT = (_which("ollama") is not None) and (os.getenv("ENABLE_LLM_AUDIT", "1") == "1")
 
-# ---- Import core helpers from phase1_lib with robust error surfacing ----
-import traceback
+# ---- HTTP session with retries/backoff ----
+def _requests_session() -> requests.Session:
+    s = requests.Session()
+    retry = Retry(
+        total=4,
+        read=4,
+        connect=3,
+        backoff_factor=1.2,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=frozenset(["GET"]),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    s.mount("https://", adapter)
+    s.mount("http://", adapter)
+    return s
+
+_HTTP = _requests_session()
+
+# ---- Import core helpers from phase1_lib ----
 try:
     # Prefer relative import (we're inside modules/)
     from .phase1_lib import (
@@ -74,140 +94,120 @@ except ModuleNotFoundError:
     )
     _PHASE1_LIB_SRC = "phase1_lib"
 except Exception as e:
-    raise ImportError("Error inside modules.phase1_lib while importing core names:\n" + traceback.format_exc()) from e
+    raise ImportError("Error inside phase1_lib while importing core names:\n" + traceback.format_exc()) from e
 
-# Try to import Step-2 scoring; if missing, define safe fallbacks
+# ---- Tiering: final decision comes from this function ----
 try:
-    from .phase1_lib import score_candidate, choose_tier1_threshold, assign_predicted_tier  # type: ignore
+    from .Phase1_tiering import choose_tier  # (industry, audit_cand, predicted_tier) -> (final_tier, source, reason, conf, raw_json)
+except Exception as e:
+    raise ImportError("Phase1_tiering.choose_tier missing or failed to import:\n" + traceback.format_exc()) from e
+
+# ---- Scoring (ranking within tier). Try Phase1_scoring, else phase1_lib, else fallback shim ----
+try:
+    from .Phase1_scoring import score_candidate, choose_tier1_threshold, assign_predicted_tier  # type: ignore
 except Exception:
-    # ---- Fallback scoring implementations (shim) ----
-    def _text_hits(text: str, tokens: Set[str]) -> int:
-        tx = (text or "").lower()
-        return sum(1 for t in tokens if t and t.lower() in tx)
+    try:
+        from .phase1_lib import score_candidate, choose_tier1_threshold, assign_predicted_tier  # type: ignore
+    except Exception:
+        # ---- Fallback minimal scoring shim ----
+        def _text_hits(text: str, tokens: Set[str]) -> int:
+            tx = (text or "").lower()
+            return sum(1 for t in tokens if t and t.lower() in tx)
 
-    def _schema_match_bonus(schema_types: List[str], industry: str) -> float:
-        """Very small bonus when schema.org type matches the vertical."""
-        if not schema_types:
+        def _schema_match_bonus(schema_types: List[str], industry: str) -> float:
+            if not schema_types:
+                return 0.0
+            ind = (industry or "").lower()
+            tset = {t.lower() for t in schema_types}
+            if any(s in tset for s in ["cafeorcoffeeshop", "cafe", "coffeeshop"]):
+                if "coffee" in ind: return 1.0
+            if any(s in tset for s in ["hairsalon", "barbershop", "beautysalon"]):
+                if any(w in ind for w in ["hair", "salon", "barber"]): return 1.0
+            if any(s in tset for s in ["carwash", "automotivebusiness"]):
+                if "car wash" in ind or "carwash" in ind: return 1.0
             return 0.0
-        ind = (industry or "").lower()
-        tset = {t.lower() for t in schema_types}
-        # Common mappings; extend as needed
-        if any(s in tset for s in ["cafeorcoffeeshop", "caféorcoffeeshop", "cafe", "coffeeshop"]):
-            if "coffee" in ind:
-                return 1.0
-        if any(s in tset for s in ["hairsalon", "barbershop", "beautysalon"]):
-            if "hair" in ind or "salon" in ind or "barber" in ind:
-                return 1.0
-        if any(s in tset for s in ["carwash", "automotivebusiness"]):
-            if "car wash" in ind or "carwash" in ind:
-                return 1.0
-        return 0.0
 
-    def score_candidate(cand: Dict[str, Any], settings: "IndustrySettings") -> Tuple[float, Any]:
-        """
-        Returns (score 0..100, reasons).
-        Minimal, transparent scoring used only if phase1_lib lacks scoring.
-        """
-        score = 0.0
-        reasons: Dict[str, Any] = {}
+        def score_candidate(cand: Dict[str, Any], settings: "IndustrySettings") -> Tuple[float, Any]:
+            score = 0.0
+            reasons: Dict[str, Any] = {}
 
-        # Allow types
-        types = set((cand.get("types") or []))
-        allow_hit = types & settings.allow_types
-        if allow_hit:
-            w = settings.weights.get("allow_types", 30.0)
-            score += w
-            reasons[f"allow_types(+{int(w)})"] = sorted(allow_hit)
+            # types allow / soft-deny
+            types = set((cand.get("types") or []))
+            allow_hit = types & settings.allow_types
+            if allow_hit:
+                w = settings.weights.get("allow_types", 30.0)
+                score += w; reasons[f"allow_types(+{int(w)})"] = sorted(allow_hit)
+            deny_hit = types & settings.soft_deny_types
+            if deny_hit:
+                w = settings.weights.get("soft_deny_types", -20.0)
+                score += w; reasons[f"soft_deny({int(w)})"] = sorted(deny_hit)
 
-        # Soft-deny
-        deny_hit = types & settings.soft_deny_types
-        if deny_hit:
-            w = settings.weights.get("soft_deny_types", -20.0)
-            score += w
-            reasons[f"soft_deny({int(w)})"] = sorted(deny_hit)
+            # tokens
+            blob = " ".join([str(cand.get("page_title","")), str(cand.get("headers","")), str(cand.get("text","")), str(cand.get("name",""))])
+            pos_hits = _text_hits(blob, settings.name_positive)
+            neg_hits = _text_hits(blob, settings.name_negative)
+            if pos_hits:
+                per = settings.weights.get("name_pos", 10.0)
+                bonus = min(2, pos_hits) * per
+                score += bonus; reasons[f"name_pos(+{int(bonus)})"] = pos_hits
+            if neg_hits:
+                per = abs(settings.weights.get("name_neg", -10.0))
+                penalty = min(2, neg_hits) * per
+                score -= penalty; reasons[f"name_neg(-{int(penalty)})"] = neg_hits
 
-        # Tokens from page/name
-        blob = " ".join([
-            str(cand.get("page_title","")),
-            str(cand.get("headers","")),
-            str(cand.get("text","")),
-            str(cand.get("name","")),
-        ])
-        pos_hits = _text_hits(blob, settings.name_positive)
-        neg_hits = _text_hits(blob, settings.name_negative)
-        if pos_hits:
-            per = settings.weights.get("name_pos", 10.0)
-            bonus = min(2, pos_hits) * per
-            score += bonus
-            reasons[f"name_pos(+{int(bonus)})"] = pos_hits
-        if neg_hits:
-            per = abs(settings.weights.get("name_neg", -10.0))
-            penalty = min(2, neg_hits) * per
-            score -= penalty
-            reasons[f"name_neg(-{int(penalty)})"] = neg_hits
+            # phrase-level negatives from planner (soft)
+            blob_l = blob.lower()
+            phrase_hits = []
+            for phrase in (cand.get("exclude_phrases") or [])[:12]:
+                ph = (phrase or "").lower()
+                if ph and ph in blob_l:
+                    phrase_hits.append(phrase)
+            if phrase_hits:
+                penalty_each = 3.0; max_penalty = 6.0
+                total_penalty = min(max_penalty, penalty_each * len(phrase_hits))
+                score -= total_penalty
+                reasons[f"name_neg_phrase(-{int(total_penalty)})"] = phrase_hits
 
-        # Phrase-level negatives from planner (SOFT; recall-first)
-        blob_l = blob.lower()
-        phrase_hits = []
-        for phrase in (cand.get("exclude_phrases") or [])[:12]:
-            ph = (phrase or "").lower()
-            if ph and ph in blob_l:
-                phrase_hits.append(phrase)
+            # website
+            if cand.get("website"):
+                w = settings.weights.get("website", 5.0)
+                score += w; reasons[f"website(+{int(w)})"] = True
 
-        if phrase_hits:
-            penalty_each = 3.0
-            max_penalty = 6.0
-            total_penalty = min(max_penalty, penalty_each * len(phrase_hits))
-            score -= total_penalty
-            reasons[f"name_neg_phrase(-{int(total_penalty)})"] = phrase_hits
+            # rating/reviews
+            rating = cand.get("rating"); reviews = cand.get("user_ratings_total") or 0
+            if isinstance(rating, (int, float)) and rating >= 3.8 and reviews >= 25:
+                w = settings.weights.get("rating", 5.0)
+                score += w; reasons[f"rating(+{int(w)})"] = f"{rating} ({reviews})"
 
-        # Website presence
-        if cand.get("website"):
-            w = settings.weights.get("website", 5.0)
-            score += w
-            reasons[f"website(+{int(w)})"] = True
+            # focus bonus
+            focus_detail = cand.get("focus_detail")
+            if focus_detail and focus_detail.lower() in blob.lower():
+                w = settings.weights.get("focus_bonus", 8.0)
+                score += w; reasons[f"focus(+{int(w)})"] = focus_detail
 
-        # Rating & reviews
-        rating = cand.get("rating"); reviews = cand.get("user_ratings_total") or 0
-        if isinstance(rating, (int, float)) and rating >= 3.8 and reviews >= 25:
-            w = settings.weights.get("rating", 5.0)
-            score += w
-            reasons[f"rating(+{int(w)})"] = f"{rating} ({reviews})"
+            # schema bonus
+            schema_bonus_w = settings.weights.get("schema_bonus", 4.0)
+            if _schema_match_bonus(cand.get("schema_types") or [], cand.get("industry") or "") > 0:
+                score += schema_bonus_w; reasons[f"schema_bonus(+{int(schema_bonus_w)})"] = cand.get("schema_types")
 
-        # Focus bonus (brand/subtype mention)
-        focus_detail = cand.get("focus_detail")
-        if focus_detail and focus_detail.lower() in blob.lower():
-            w = settings.weights.get("focus_bonus", 8.0)
-            score += w
-            reasons[f"focus(+{int(w)})"] = focus_detail
+            return max(0.0, min(100.0, score)), reasons
 
-        # NEW: schema.org type light bonus
-        schema_bonus_w = settings.weights.get("schema_bonus", 4.0)
-        sb = _schema_match_bonus(cand.get("schema_types") or [], cand.get("industry") or "")
-        if sb > 0:
-            score += schema_bonus_w
-            reasons[f"schema_bonus(+{int(schema_bonus_w)})"] = cand.get("schema_types")
+        def choose_tier1_threshold(scores: List[int], threshold_candidates: List[int], floor_ratio: float, target: int) -> int:
+            if not scores:
+                return max(65, min(threshold_candidates) if threshold_candidates else 65)
+            likely_eligible = sum(1 for s in scores if s >= 50)
+            floor = max(1, min(target, int(round(floor_ratio * max(1, likely_eligible)))))
+            for t in threshold_candidates:
+                if sum(1 for s in scores if s >= t) >= floor:
+                    return int(t)
+            return int(min(threshold_candidates) if threshold_candidates else 55)
 
-        # Clamp
-        score = max(0.0, min(100.0, score))
-        return score, reasons
+        def assign_predicted_tier(score: int, tier1_threshold: int) -> int:
+            if score >= tier1_threshold: return 1
+            if score >= 50: return 2
+            return 3
 
-    def choose_tier1_threshold(scores: List[int], threshold_candidates: List[int], floor_ratio: float, target: int) -> int:
-        if not scores:
-            return max(65, min(threshold_candidates) if threshold_candidates else 65)
-        likely_eligible = sum(1 for s in scores if s >= 50)
-        floor = max(1, min(target, int(round(floor_ratio * max(1, likely_eligible)))))
-        for t in threshold_candidates:
-            if sum(1 for s in scores if s >= t) >= floor:
-                return int(t)
-        return int(min(threshold_candidates) if threshold_candidates else 55)
-
-    def assign_predicted_tier(score: int, tier1_threshold: int) -> int:
-        if score >= tier1_threshold: return 1
-        if score >= 50: return 2
-        return 3
-
-# ---- helpers ----
+# ---- small utils ----
 
 def _tokens_from_phrases(phrases):
     bag = (phrases or [])
@@ -218,47 +218,34 @@ def _tokens_from_phrases(phrases):
                 toks.add(t)
     return toks
 
-
 def _sanitize_keywords(kw_list, breadth):
-    """Filter junk modifiers and overly long phrases; cap by breadth."""
     junk = {"near me", "best", "cheap", "price", "prices", "hours", "open", "now", "phone", "address", "reviews"}
     out = []
     for k in (kw_list or []):
         s = (k or "").strip()
-        if not s:
-            continue
+        if not s: continue
         sl = s.lower()
-        if any(j in sl for j in junk):
-            continue
-        if len(sl.split()) > 4:
-            continue
+        if any(j in sl for j in junk): continue
+        if len(sl.split()) > 4: continue
         out.append(s)
     cap = {"narrow": 2, "normal": 4, "wide": 8}.get((breadth or "normal").lower(), 4)
     return out[:cap]
 
-
 def _ensure_weight_floors(settings: "IndustrySettings"):
-    """Make sure core weights aren’t zeroed by an LLM profile merge."""
     floors = {
         "website": 5.0,
         "rating": 5.0,
         "name_pos": 10.0,
         "name_neg": -10.0,
-        # keep soft-deny meaningful if provided
         "soft_deny_types": settings.weights.get("soft_deny_types", -20.0) or -20.0,
     }
     for k, v in floors.items():
         if k not in settings.weights or abs(settings.weights.get(k, 0.0)) < 1e-9:
             settings.weights[k] = v
 
-
 # ---------------- LLM discovery planner (broad, industry-agnostic) ----------------
 
 def _sanitize_types_against_keywords(settings: "IndustrySettings", planned_keywords, industry: str):
-    """
-    Generic guard: if allow_types tokens don't appear anywhere in industry+keywords,
-    drop them (and lower their weight) so scoring doesn't bias the wrong vertical.
-    """
     bag = (industry or "") + " " + " ".join(planned_keywords or [])
     bag = bag.lower()
 
@@ -267,20 +254,17 @@ def _sanitize_types_against_keywords(settings: "IndustrySettings", planned_keywo
 
     kept = set()
     for t in list(getattr(settings, "allow_types", set()) or []):
-        ttoks = _tokify(t)  # e.g., "coffee_shop" -> ["coffee","shop"]
+        ttoks = _tokify(t)
         if any(tok in bag for tok in ttoks):
             kept.add(t)
 
-    # If nothing matches, clear allow_types and reduce its weight so score relies on tokens/web signals instead.
     if not kept:
         settings.allow_types = set()
         settings.weights["allow_types"] = min(settings.weights.get("allow_types", 30.0), 10.0)
-        return None  # no type_hint recommended
+        return None
     else:
         settings.allow_types = kept
-        # choose a type_hint deterministically from the kept set (first sorted)
         return sorted(kept)[0]
-
 
 def _llm_discovery_plan_prompt(industry: str, location: str, focus_detail: Optional[str], breadth: str) -> str:
     return (
@@ -303,6 +287,19 @@ def _llm_discovery_plan_prompt(industry: str, location: str, focus_detail: Optio
         '{ "keywords": ["..."], "exclude_keywords": ["..."], "types_primary": [], "types_secondary": [] }'
     )
 
+async def _ollama_json(prompt: str) -> Dict[str, Any]:
+    """Call local Ollama and parse JSON response."""
+    proc = await asyncio.create_subprocess_exec(
+        "ollama", "run", LLM_MODEL,
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    stdout, _ = await proc.communicate(input=prompt.encode("utf-8"))
+    raw = stdout.decode("utf-8").strip()
+    m = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", raw) or re.search(r"(\{[\s\S]*\})", raw)
+    try:
+        return json.loads(m.group(1)) if m else {"keywords": [], "exclude_keywords": []}
+    except Exception:
+        return {"keywords": [], "exclude_keywords": []}
 
 def _fallback_keyword_plan(industry: str, focus_detail: Optional[str], breadth: str) -> Dict[str, Any]:
     ind = (industry or "").strip()
@@ -320,14 +317,11 @@ def _fallback_keyword_plan(industry: str, focus_detail: Optional[str], breadth: 
     if focus_detail:
         base = [focus_detail] + base
 
-    # Generic excludes derived from common “off-target” patterns;
-    # additionally, if any keyword mentions "golf", exclude course/range noise.
     excludes = {"for sale", "used", "wholesale", "market", "outdoor"}
     bag = " ".join(base)
     if "golf" in bag:
         excludes.update({"golf course", "driving range", "mini golf", "country club"})
 
-    # Clean and cap by breadth
     base = [k.strip() for k in base if len(k.strip()) >= 3]
     cap = {"narrow": 4, "normal": 8, "wide": 12}.get((breadth or "normal").lower(), 8)
 
@@ -340,12 +334,7 @@ def _fallback_keyword_plan(industry: str, focus_detail: Optional[str], breadth: 
         "max_keywords": {"narrow": 2, "normal": 4, "wide": 8}.get(breadth, 4),
     }
 
-
 def _plan_seed_keywords(project: Dict[str, Any], settings: "IndustrySettings") -> Dict[str, Any]:
-    """
-    Returns a dict: { keywords, exclude_keywords, types_primary, types_secondary, max_keywords, source }
-    Persists planner_json to search_projects.
-    """
     industry = project.get("industry", "")
     location = project.get("location", "")
     focus_detail = project.get("focus_detail")
@@ -363,14 +352,12 @@ def _plan_seed_keywords(project: Dict[str, Any], settings: "IndustrySettings") -
     if not plan or not plan.get("keywords"):
         plan = _fallback_keyword_plan(industry, focus_detail, breadth)
 
-    # breadth → how many distinct keywords to try per grid node
     max_kw = {"narrow": 2, "normal": 4, "wide": 8}.get(breadth, 4)
     plan["max_keywords"] = max_kw
     plan["source"] = plan.get("source") or ("llm" if _which("ollama") else "fallback")
 
     # soften ambiguous excludes (hybrid-friendly)
-    ambiguous = {"golf lessons", "pro shop", "golf store", "golf equipment rental",
-                 "sporting goods store", "recreation center"}
+    ambiguous = {"golf lessons", "pro shop", "golf store", "golf equipment rental", "sporting goods store", "recreation center"}
     if plan.get("exclude_keywords"):
         plan["exclude_keywords"] = [p for p in plan["exclude_keywords"] if (p or "").lower() not in ambiguous]
 
@@ -383,7 +370,6 @@ def _plan_seed_keywords(project: Dict[str, Any], settings: "IndustrySettings") -
 
     return plan
 
-
 # -------------------------------------------------------------
 # Google helpers
 # -------------------------------------------------------------
@@ -391,8 +377,9 @@ def _plan_seed_keywords(project: Dict[str, Any], settings: "IndustrySettings") -
 def geocode_location(location: str) -> Tuple[float, float]:
     url = "https://maps.googleapis.com/maps/api/geocode/json"
     params = {"address": location, "key": GOOGLE_API_KEY}
-    resp = requests.get(url, params=params, timeout=20)
-    data = resp.json()
+    r = _HTTP.get(url, params=params, timeout=30)
+    r.raise_for_status()
+    data = r.json()
     results = data.get("results", [])
     if not results:
         raise ValueError(f"Unable to geocode location: {data.get('status')}")
@@ -420,13 +407,22 @@ def google_nearby_search(keyword: str, lat: float, lng: float, radius_km: float,
     params: Dict[str, Any] = {"location": f"{lat},{lng}", "radius": int(radius_km * 1000), "keyword": keyword, "key": GOOGLE_API_KEY}
     if type_hint: params["type"] = type_hint
     all_results: List[Dict[str, Any]] = []
+    page_count = 0
     while True:
-        r = requests.get(url, params=params, timeout=30); data = r.json()
-        if "error_message" in data: st.warning(f"Google API warning: {data['error_message']}"); break
-        results = data.get("results", []) or []; all_results.extend(results)
+        r = _HTTP.get(url, params=params, timeout=30)
+        data = r.json()
+        if "error_message" in data:
+            st.warning(f"Google API warning: {data['error_message']}")
+            break
+        results = data.get("results", []) or []
+        all_results.extend(results)
         token = data.get("next_page_token")
-        if not token: break
-        time.sleep(2.0); params = {"pagetoken": token, "key": GOOGLE_API_KEY}
+        page_count += 1
+        if not token or page_count >= 3:
+            break
+        # Google needs a short delay before using next_page_token
+        time.sleep(2.0)
+        params = {"pagetoken": token, "key": GOOGLE_API_KEY}
     return all_results
 
 def get_place_details(place_id: str) -> Dict[str, Any]:
@@ -436,7 +432,7 @@ def get_place_details(place_id: str) -> Dict[str, Any]:
         "fields": "address_components,types,formatted_phone_number,opening_hours,editorial_summary,website,rating,user_ratings_total",
     }
     try:
-        r = requests.get(url, params=params, timeout=30)
+        r = _HTTP.get(url, params=params, timeout=30)
         return r.json().get("result", {}) or {}
     except Exception:
         return {}
@@ -461,21 +457,18 @@ def _extract_schema_types_ldjson(soup: BeautifulSoup) -> List[str]:
             elif isinstance(obj, list):
                 for v in obj: _collect(v)
         _collect(data)
-    # normalize and dedupe
-    norm = []
-    seen = set()
+    norm, seen = [], set()
     for t in types:
         tnorm = re.sub(r"[^A-Za-z]", "", t).lower()
         if tnorm and tnorm not in seen:
             norm.append(tnorm); seen.add(tnorm)
-    return norm[:12]  # cap
+    return norm[:12]
 
 def scrape_site(url: str) -> Dict[str, Any]:
-    """Lightweight scrape: title, meta description, h1-h3, short body sample, schema.org types."""
     if not url: return {}
     try:
         headers = {"User-Agent": "Mozilla/5.0"}
-        r = requests.get(url, headers=headers, timeout=8)
+        r = _HTTP.get(url, headers=headers, timeout=8)
         ctype = (r.headers.get("Content-Type") or "").lower()
         if "text/html" not in ctype: return {}
         soup = BeautifulSoup(r.text, "html.parser")
@@ -499,7 +492,6 @@ def scrape_site(url: str) -> Dict[str, Any]:
 # -------------------------------------------------------------
 
 def _finalize_profile(project: Dict[str, Any]) -> Tuple["IndustrySettings", Dict[str, Any], Optional[str], Optional[str]]:
-    """Build discovery profile (defaults -> optional LLM -> merge), persist it to the project, return knobs."""
     industry = (project.get("industry") or "").strip()
     location = (project.get("location") or "").strip()
     use_llm_profile = bool(project.get("use_llm_profile", True))
@@ -515,26 +507,19 @@ def _finalize_profile(project: Dict[str, Any]) -> Tuple["IndustrySettings", Dict
         if prof:
             settings = merge_profile(settings, prof)
 
-    # ensure baseline weights exist
     settings.weights.setdefault("schema_bonus", 4.0)
     _ensure_weight_floors(settings)
 
     type_hint, keyword = compose_keyword(settings, focus_detail, focus_strict)
 
-    # Align scoring tokens to planned keywords to avoid wrong-vertical bias
+    # Align scoring tokens to planned keywords (avoid wrong-vertical bias)
     kw_plan = _plan_seed_keywords(project, settings)
     kw_list = (kw_plan.get("keywords") or [])
     ex_list = kw_plan.get("exclude_keywords") or []
-
-    topic_tokens = _tokens_from_phrases(kw_list + [industry, focus_detail or ""])  # single token set
-
-    # Keep only on-topic existing positives, and augment with high-signal planner tokens
+    topic_tokens = _tokens_from_phrases(kw_list + [industry, focus_detail or ""])
     base_pos = {t for t in (getattr(settings, "name_positive", set()) or set()) if (t or "").lower() in topic_tokens}
     derived_pos = {t for t in topic_tokens if t in {"simulator", "indoor", "studio", "lounge", "bay", "suite"}}
     settings.name_positive = base_pos | derived_pos
-
-    # Negatives from excludes: drop very-generic/on-topic tokens (e.g., 'golf')
-    # Do not convert excludes into token-level negatives; handled as phrase-level penalties in scoring
     settings.name_negative = set(getattr(settings, "name_negative", set()) or set())
 
     profile_json = {
@@ -551,7 +536,6 @@ def _finalize_profile(project: Dict[str, Any]) -> Tuple["IndustrySettings", Dict
         "floor_ratio": settings.floor_ratio,
         "profile_source": getattr(settings, "profile_source", "defaults"),
         "focus_detail": focus_detail, "focus_strict": focus_strict,
-        # Planner visibility for auditability
         "planned_keywords": kw_list,
         "planned_excludes": ex_list,
     }
@@ -569,7 +553,6 @@ def _finalize_profile(project: Dict[str, Any]) -> Tuple["IndustrySettings", Dict
 
 def _render_preview(center_lat: float, center_lng: float, project: Dict[str, Any],
                     settings: "IndustrySettings", type_hint: Optional[str], keyword: Optional[str]) -> bool:
-    """Render plan preview (no API calls). Return True if user clicks Approve & Run."""
     params = DiscoveryParams(
         breadth=project.get("breadth", "normal"),
         target_count=int(project.get("target_count", 20)),
@@ -580,16 +563,14 @@ def _render_preview(center_lat: float, center_lng: float, project: Dict[str, Any
                         focus_detail=project.get("focus_detail"),
                         focus_strict=bool(project.get("focus_strict", False)))
 
-    # discovery keywords plan
     kw_plan = _plan_seed_keywords(project, settings)
     raw_kw_list = (kw_plan.get("keywords") or [])
     kw_list = _sanitize_keywords(raw_kw_list, (project.get("breadth") or "normal").lower())
     ex_list = kw_plan.get("exclude_keywords") or []
     src = kw_plan.get("source", "fallback")
 
-    # Sanitize allow_types/type_hint to avoid wrong-vertical boosts in scoring explanation
     sanitized_type_hint = _sanitize_types_against_keywords(settings, kw_list, project.get("industry", ""))
-    type_hint = sanitized_type_hint  # replace for display
+    type_hint = sanitized_type_hint
 
     st.subheader("Preview: Discovery Plan")
     st.caption("No API calls will be made until you approve.")
@@ -632,55 +613,28 @@ def _render_preview(center_lat: float, center_lng: float, project: Dict[str, Any
 
     return st.button("✅ Approve & Run", type="primary")
 
-
-# -------------------------------------------------------------
-# LLM helpers
-# -------------------------------------------------------------
-
-async def _ollama_json(prompt: str) -> Dict[str, Any]:
-    """Call local Ollama and parse JSON response."""
-    proc = await asyncio.create_subprocess_exec(
-        "ollama", "run", LLM_MODEL,
-        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-    )
-    stdout, _ = await proc.communicate(input=prompt.encode("utf-8"))
-    raw = stdout.decode("utf-8").strip()
-    m = re.search(r"```json\s*(\{[\s\S]*?\})\s*```", raw) or re.search(r"(\{[\s\S]*\})", raw)
-    try:
-        return json.loads(m.group(1)) if m else {"tier": 3, "reason": raw[:400]}
-    except Exception:
-        return {"tier": 3, "reason": raw[:400]}
-
-def _llm_audit_prompt(industry: str, cand: Dict[str, Any]) -> str:
-    return (
-        "You are re-auditing a candidate business for industry discovery.\n"
-        "Return STRICT JSON with keys:\n"
-        "  tier: 1 | 2 | 3\n"
-        "  reason: short, concrete justification (<=120 chars)\n"
-        "  confidence: number in [0,1]\n"
-        "  flags: array of short tags (e.g., ['off_target','brand_match'])\n"
-        "Rules:\n"
-        "- Your reason MUST align with the tier. If you cite 'low rating' or 'few reviews', you cannot output tier=1.\n"
-        "- Prefer tier=2 when evidence is mixed or incomplete.\n"
-        "- Only choose tier=1 when signals strongly support it for THIS industry.\n"
-        f"Industry: {industry}\n"
-        f"Candidate: {json.dumps(cand, ensure_ascii=False)}\n\n"
-        '{ "tier": 2, "reason": "mixed signals", "confidence": 0.62, "flags": [] }'
-    )
-
-
 # -------------------------------------------------------------
 # Persistence
 # -------------------------------------------------------------
 
-def _insert_result(row: Dict[str, Any]) -> None:
+def _upsert_result(row: Dict[str, Any]) -> None:
+    """UPSERT by (project_id, place_id) to avoid 23505 conflicts."""
     if not supabase:
         st.error("Supabase client not initialized.")
         return
     try:
-        supabase.table("search_results").insert(row).execute()
+        # Try native upsert with on_conflict if available (supabase-py v2)
+        supabase.table("search_results").upsert(row, on_conflict="project_id,place_id").execute()
     except Exception as e:
-        st.error(f"Error saving result: {e}")
+        # Fallback: update if exists else insert
+        try:
+            supabase.table("search_results").update(row)\
+                .match({"project_id": row["project_id"], "place_id": row["place_id"]}).execute()
+        except Exception:
+            try:
+                supabase.table("search_results").insert(row).execute()
+            except Exception as ee:
+                st.error(f"Error saving result: {getattr(ee, 'message', str(ee)) or ee}")
 
 # -------------------------------------------------------------
 # Main entry used by the UI
@@ -688,7 +642,7 @@ def _insert_result(row: Dict[str, Any]) -> None:
 
 def search_and_expand(project: dict) -> bool:
     """
-    Execute Google -> Score -> (optional) LLM audit override -> Save results.
+    Execute Google -> Score -> choose_tier (GPT/Ollama) -> Save results.
     Returns True when the run completes.
     """
     radius_km = float(project.get("search_radius_km", SEARCH_RADIUS_KM_DEFAULT))
@@ -719,8 +673,12 @@ def search_and_expand(project: dict) -> bool:
     for i, (lat, lng) in enumerate(pts):
         prog.progress(i / max(1, len(pts)), text=f"Searching at ({lat:.4f}, {lng:.4f})")
         for k in kw_list:
-            # Excludes are used for scoring only (recall-first)
-            results = google_nearby_search(k, lat, lng, radius_km, type_hint=None)  # NOTE: no type filter here
+            # Excludes are NOT used to filter queries (recall-first)
+            try:
+                results = google_nearby_search(k, lat, lng, radius_km, type_hint=None)  # no type filter
+            except requests.exceptions.ReadTimeout:
+                # continue on timeouts
+                continue
             for r in results:
                 pid = r.get("place_id")
                 if pid and pid not in found:
@@ -732,7 +690,7 @@ def search_and_expand(project: dict) -> bool:
 
     prog.empty()
 
-    # scoring
+    # scoring (ranking within tiers)
     st.write(f"Scoring + classifying {len(found)} unique businesses…")
     scored_list: List[Dict[str, Any]] = []
     for place in found.values():
@@ -751,11 +709,11 @@ def search_and_expand(project: dict) -> bool:
             "page_title": scraped.get("page_title", ""),
             "headers": scraped.get("headers", ""),
             "text": scraped.get("visible_text_blocks", ""),
-            "schema_types": scraped.get("schema_types", []),   # NEW
+            "schema_types": scraped.get("schema_types", []),
             "focus_detail": profile_json.get("focus_detail"),
             "focus_strict": profile_json.get("focus_strict"),
             "industry": project.get("industry", ""),
-            "exclude_phrases": list(exclude_kw),                # NEW: phrase-level negatives for shim scoring
+            "exclude_phrases": list(exclude_kw),  # soft phrase-level negatives in shim
         }
         score, reasons = score_candidate(cand, settings)
         scored_list.append({
@@ -763,7 +721,7 @@ def search_and_expand(project: dict) -> bool:
             "score": int(round(score)), "reasons": reasons,
         })
 
-    # dynamic threshold & predicted tier
+    # dynamic threshold & predicted tier (used as context/fallback only)
     scores_only = [row["score"] for row in scored_list]
     threshold_candidates = settings.threshold_candidates or [80, 75, 70, 65, 60, 55]
     tier1_threshold = choose_tier1_threshold(
@@ -771,17 +729,27 @@ def search_and_expand(project: dict) -> bool:
         floor_ratio=settings.floor_ratio, target=target,
     )
 
-    # audit + persist
+    # choose_tier + persist
     async def _process():
-        prog2 = st.progress(0.0, text="Running LLM re-audit…" if ENABLE_LLM_AUDIT else "Saving results…")
+        prog2 = st.progress(0.0, text="Choosing tiers and saving…")
         total = max(1, len(scored_list))
         for i, row in enumerate(scored_list):
             place = row["place"]; details = row["details"]; scraped = row["scraped"]
             score = row["score"]
+
+            # base attributes
+            lat = place.get("geometry", {}).get("location", {}).get("lat")
+            lng = place.get("geometry", {}).get("location", {}).get("lng")
+            place_id = place.get("place_id")
+            name = place.get("name", "")
+            address = place.get("vicinity", "")
+
+            # predicted tier from numeric (context for LLM; not final)
             predicted_tier = assign_predicted_tier(score, tier1_threshold)
 
+            # compact candidate for audit/tiering
             audit_cand = {
-                "name": place.get("name", ""),
+                "name": name,
                 "types": details.get("types", []) or place.get("types", []),
                 "rating": details.get("rating"),
                 "reviews": details.get("user_ratings_total"),
@@ -793,46 +761,17 @@ def search_and_expand(project: dict) -> bool:
                 "predicted_tier": predicted_tier,
                 "tier1_threshold": tier1_threshold,
             }
+            # NEW: pass the project toggle (default True if not present)
+            audit_cand["_llm_tiering"] = bool(project.get("use_llm_tiering", True))
 
-            # LLM re-audit (override only if confident)
-            if ENABLE_LLM_AUDIT:
-                try:
-                    audit_json = await _ollama_json(_llm_audit_prompt(project["industry"], audit_cand))
-                except Exception:
-                    audit_json = {"tier": predicted_tier, "reason": f"Score-based tier {predicted_tier} (audit error)",
-                                  "confidence": 0.0, "flags": []}
-            else:
-                audit_json = {"tier": predicted_tier, "reason": f"Score-based tier {predicted_tier} (audit disabled)",
-                              "confidence": 0.0, "flags": []}
+            # Final tier decision (GPT/Ollama when enabled; numeric otherwise inside choose_tier)
+            final_tier, tier_source, tier_reason, audit_conf, _raw = choose_tier(
+                project.get("industry", ""),
+                audit_cand,
+                predicted_tier,
+            )
 
-            # Normalize audit fields
-            try:
-                llm_tier = int(audit_json.get("tier", predicted_tier))
-            except Exception:
-                llm_tier = predicted_tier
-            audit_reason = (audit_json.get("reason") or "").strip()
-            try:
-                audit_conf = float(audit_json.get("confidence", 0.0))
-            except Exception:
-                audit_conf = 0.0
-
-            # Confidence-gated override
-            final_tier = predicted_tier
-            tier_source = "score"
-            tier_reason = f"Score {score} (T1≥{tier1_threshold})"
-
-            if llm_tier != predicted_tier and audit_conf >= 0.70:
-                final_tier = llm_tier
-                tier_source = "llm_override"
-                tier_reason = audit_reason or f"LLM override to T{llm_tier}"
-
-            # If LLM disagreed but was not confident, record its suggestion in the reason
-            elif llm_tier != predicted_tier and audit_conf < 0.70:
-                if audit_reason:
-                    tier_reason = f"{tier_reason}; LLM suggested T{llm_tier} (conf {audit_conf:.2f}): {audit_reason}"
-                else:
-                    tier_reason = f"{tier_reason}; LLM suggested T{llm_tier} (conf {audit_conf:.2f})"
-
+            # Address bits
             city = state = zipc = ""
             for comp in (details.get("address_components") or []):
                 types = comp.get("types", [])
@@ -840,48 +779,41 @@ def search_and_expand(project: dict) -> bool:
                 elif "administrative_area_level_1" in types: state = comp.get("short_name", "")
                 elif "postal_code" in types: zipc = comp.get("long_name", "")
 
-            lat = place.get("geometry", {}).get("location", {}).get("lat")
-            lng = place.get("geometry", {}).get("location", {}).get("lng")
-            place_id = place.get("place_id")
-
-            web_signals = {
-                "schema_types": scraped.get("schema_types", []),
-            }
+            web_signals = {"schema_types": scraped.get("schema_types", [])}
 
             row_out = {
                 "id": str(uuid4()),
                 "project_id": project["id"],
                 "place_id": place_id,
-                "name": place.get("name"),
-                "address": place.get("vicinity", ""),
+                "name": name,
+                "address": address,
                 "city": city, "state": state, "zip": zipc,
-                "website": audit_cand["website"],
+                "website": audit_cand["website"],  # persist website for manual inspection
                 "google_maps_url": f"https://www.google.com/maps/place/?q=place_id:{place_id}",
                 "latitude": lat, "longitude": lng,
                 "category": "",
                 "page_title": scraped.get("page_title", ""),
-                "eligibility_score": score,
+                "eligibility_score": score,  # ranking within tier
                 "score_reasons": json.dumps(row["reasons"]) if not isinstance(row["reasons"], str) else row["reasons"],
                 "tier": final_tier,
-                "tier_reason": tier_reason,
-                "tier_source": tier_source,           # NEW
-                "audit_confidence": audit_conf,       # NEW
+                "tier_reason": tier_reason,          # short, human-readable reason
+                "tier_source": tier_source,          # "llm_override" / "gpt4" / "numeric" depending on choose_tier impl
+                "audit_confidence": audit_conf,      # 0..1 if LLM used
 
                 "manual_override": False,
                 "profile_source": getattr(settings, "profile_source", "defaults"),
-                # NEW:
                 "web_signals": web_signals,
-
             }
-            _insert_result(row_out)
+
+            _upsert_result(row_out)
             prog2.progress((i + 1) / total, text=f"Processed {i + 1} of {total}")
         prog2.empty()
 
     asyncio.run(_process())
-    st.success("All results scored, audited, and saved.")
+    st.success("All results scored, tiered, and saved.")
     return True
 
-# Explicit exports to avoid name confusion
+# Explicit exports
 __all__ = [
     "geocode_location",
     "_finalize_profile",

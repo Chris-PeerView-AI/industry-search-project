@@ -5,10 +5,21 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="b4280a28-be17-45b8-9459-476b162e7475" name="Changes" comment="Created a test code for making a prettier map">
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_apply.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_apply_ui.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_google.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_persist.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_planner.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_rubric.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_scoring.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_tiering.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/Phase1_web.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/TEST_IndustryClassification.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/openai_evaluator.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/modules/openai_taxonomy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/map_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/map_generator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/modules/slides_exhibit.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/slides_exhibit.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main_ui.py" beforeDir="false" afterPath="$PROJECT_DIR$/main_ui.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/modules/google_search.py" beforeDir="false" afterPath="$PROJECT_DIR$/modules/google_search.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -77,7 +88,7 @@
       <recent name="$PROJECT_DIR$" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.AdHoc_PullEnigmasummary">
+  <component name="RunManager" selected="Python.main_ui">
     <configuration name="AdHoc_PullEnigmasummary" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
@@ -166,7 +177,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="generate_project_report" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+    <configuration name="main_ui" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="industry_search_project" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -175,11 +186,11 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/modules" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modules/generate_project_report.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main_ui.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -190,11 +201,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Python.main_ui" />
         <item itemvalue="Python.AdHoc_PullEnigmasummary" />
         <item itemvalue="Python.TEST_Engima_GolfCave" />
         <item itemvalue="Python.TEST_EnigmaMetrics_API" />
         <item itemvalue="Python.TEST_Enigma_API" />
-        <item itemvalue="Python.generate_project_report" />
       </list>
     </recent_temporary>
   </component>
